@@ -1,0 +1,75 @@
+@model Sparkle.Api.Controllers.CheckoutController.PaymentStepViewModel
+@{
+    ViewData["Title"] = "Payment - Checkout";
+    var langCookie = Context.Request.Cookies["sparkle-lang"] == "bn" ? "bn" : "en";
+    var isBangla = langCookie == "bn";
+}
+
+<style>
+    .checkout-page { padding: 2rem 0; background: #f8f9fa; }
+    .checkout-steps { display: flex; justify-content: center; margin-bottom: 2rem; }
+    .step { flex: 1; max-width: 200px; text-align: center; }
+    .step-circle { width: 40px; height: 40px; border-radius: 50%; background: #ddd; color: #666; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; }
+    .step.active .step-circle { background: #ff6a00; color: white; }
+    .step.completed .step-circle { background: #28a745; color: white; }
+    .step-label { font-size: 0.9rem; }
+    .payment-card { background: white; padding: 1.5rem; border-radius: 8px; border: 2px solid #ddd; cursor: pointer; margin-bottom: 1rem; transition: all 0.2s; }
+    .payment-card:hover { border-color: #ff6a00; transform: scale(1.02); }
+    .checkout-nav { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.5rem; }
+    .btn-back { background: white; color: #666; padding: 0.75rem 2rem; border: 2px solid #e0e0e0; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.2s; }
+    .btn-back:hover { border-color: #ff6a00; color: #ff6a00; transform: translateX(-3px); }
+</style>
+
+<div class="checkout-page">
+    <div class="container">
+        <div class="checkout-steps">
+            <div class="step completed"><div class="step-circle"><i class="bi bi-check"></i></div><div class="step-label">@(isBangla ? "শিপিং" : "Shipping")</div></div>
+            <div class="step completed"><div class="step-circle"><i class="bi bi-check"></i></div><div class="step-label">@(isBangla ? "ডেলিভারি" : "Delivery")</div></div>
+            <div class="step active"><div class="step-circle">3</div><div class="step-label">@(isBangla ? "পেমেন্ট" : "Payment")</div></div>
+            <div class="step"><div class="step-circle">4</div><div class="step-label">@(isBangla ? "রিভিউ" : "Review")</div></div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <h2 class="sparkle-section-title mb-4">@(isBangla ? "পেমেন্ট মেথড" : "Payment Method")</h2>
+                <form method="post" action="/checkout/payment" id="paymentForm">
+                    <input type="hidden" name="paymentMethod" id="paymentMethodInput">
+                    <div class="payment-card" onclick="selectPayment('cod')">
+                        <h5><i class="bi bi-cash"></i> Cash on Delivery</h5>
+                        <p class="text-muted mb-0">Pay when you receive</p>
+                    </div>
+                    <div class="payment-card" onclick="selectPayment('bkash')">
+                        <h5><i class="bi bi-phone-fill"></i> bKash</h5>
+                        <p class="text-muted mb-0">Mobile payment</p>
+                    </div>
+                    <div class="payment-card" onclick="selectPayment('nagad')">
+                        <h5><i class="bi bi-phone-fill"></i> Nagad</h5>
+                        <p class="text-muted mb-0">Mobile payment</p>
+                    </div>
+                    <div class="payment-card" onclick="selectPayment('card')">
+                        <h5><i class="bi bi-credit-card"></i> Credit/Debit Card</h5>
+                        <p class="text-muted mb-0">Visa, Mastercard, Amex</p>
+                    </div>
+                    <div class="checkout-nav">
+                        <a href="/checkout/delivery" class="btn-back"><i class="bi bi-arrow-left"></i> @(isBangla ? "ডেলিভারি" : "Back to Delivery")</a>
+                    </div>
+                </form>
+            </div>
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5>@(isBangla ? "অর্ডার সারাংশ" : "Order Summary")</h5>
+                        <div class="d-flex justify-content-between"><span>@(isBangla ? "সাবটোটাল" : "Subtotal")</span><span>৳ @Model.Subtotal.ToString("N2")</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function selectPayment(method) {
+        document.getElementById('paymentMethodInput').value = method;
+        document.getElementById('paymentForm').submit();
+    }
+</script>

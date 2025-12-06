@@ -1,0 +1,576 @@
+@using Microsoft.AspNetCore.Identity
+@using Sparkle.Domain.Identity
+@inject UserManager<ApplicationUser> UserManager
+<!DOCTYPE html>
+<html lang="@(Context.Request.Cookies["sparkle-lang"] == "bn" ? "bn" : "en")">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Sparkle</title>
+    <link rel="icon" type="image/png" href="/images/logo.png" />
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <!-- Responsive Scaling for HD & 4K Displays -->
+    <link rel="stylesheet" href="~/css/responsive-scaling.css" asp-append-version="true" />
+
+    
+    <!-- Tailwind CSS (Configured to not conflict with Bootstrap) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            prefix: 'tw-',
+            corePlugins: {
+                preflight: false,
+            }
+        }
+    </script>
+    
+    <style>
+        @@font-face {
+            font-family: 'SolaimanLipi';
+            src: url('https://cdn.jsdelivr.net/npm/solaimanlipi@1.0.0/SolaimanLipi.woff2') format('woff2');
+            font-weight: normal;
+            font-style: normal;
+        }
+        
+        :root {
+            --sparkle-primary: #ff6a00;
+            --sparkle-secondary: #ff9f1c;
+            --sparkle-dark: #1e293b;
+            --sparkle-light: #f8f9fa;
+        }
+        
+        * { font-family: 'Poppins', 'Inter', 'SolaimanLipi', 'Segoe UI', sans-serif; }
+        body { 
+            font-family: 'Inter', 'SolaimanLipi', 'Segoe UI', sans-serif; 
+            font-size: 14px; 
+            background-color: #f3f4f6;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+        
+        /* Top Utility Bar */
+        .top-bar {
+            background: var(--sparkle-dark);
+            color: white;
+            font-size: 12px;
+            padding: 6px 0;
+        }
+        
+        .top-bar a { color: white; text-decoration: none; transition: color 0.2s; }
+        .top-bar a:hover { color: var(--sparkle-primary); }
+        
+        /* Main Navigation */
+        .main-nav {
+            background: linear-gradient(135deg, rgba(255, 106, 0, 0.95), rgba(255, 159, 28, 0.95));
+            padding: 12px 0;
+            box-shadow: 0 4px 20px rgba(255, 106, 0, 0.15);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .sparkle-logo {
+            font-size: 26px;
+            font-weight: 800;
+            color: white;
+            text-decoration: none;
+            letter-spacing: -0.5px;
+            font-family: 'Poppins', sans-serif;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .sparkle-logo:hover { color: white; transform: scale(1.02); transition: transform 0.2s; }
+        
+        /* Search Box */
+        .search-wrapper {
+            flex: 1;
+            max-width: 700px;
+            margin: 0 30px;
+        }
+        
+        .search-box {
+            display: flex;
+            border-radius: 50px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        .search-box:focus-within {
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+        
+        .category-dropdown {
+            background: #f8f9fa;
+            border: none;
+            padding: 0 20px;
+            font-size: 13px;
+            color: #4b5563;
+            cursor: pointer;
+            border-right: 1px solid #e5e7eb;
+            font-weight: 500;
+        }
+        
+        .search-input {
+            flex: 1;
+            border: none;
+            padding: 12px 20px;
+            font-size: 14px;
+            outline: none;
+        }
+        
+        .search-btn {
+            background: var(--sparkle-dark);
+            color: white;
+            border: none;
+            padding: 0 28px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 16px;
+        }
+        
+        .search-btn:hover { background: #0f172a; }
+        
+        /* Cart Badge */
+        .cart-icon, .settings-icon {
+            position: relative;
+            color: white;
+            font-size: 24px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .cart-icon:hover, .settings-icon:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-2px);
+            color: white;
+        }
+        
+        .cart-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            border: 2px solid white;
+        }
+        
+        /* Real-time notification badge */
+        .notification-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+            animation: pulse 2s infinite;
+        }
+        
+        @@keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        
+        /* Header Actions Card */
+        .header-actions-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 8px 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+    </style>
+</head>
+<body>
+@{
+    var lang = Context.Request.Cookies["sparkle-lang"] == "bn" ? "bn" : "en";
+    var isBangla = lang == "bn";
+    var currentUser = User.Identity?.IsAuthenticated == true ? await UserManager.GetUserAsync(User) : null;
+}
+    <!-- Top Utility Bar -->
+    <div class="top-bar">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <a href="/profile/more" class="text-white text-decoration-none d-inline-flex align-items-center gap-1">
+                        <i class="bi bi-translate"></i>
+                        <span>@(isBangla ? "ভাষা: বাংলা" : "Language: English")</span>
+                    </a>
+                    <span class="ms-4 d-inline-flex align-items-center gap-1"><i class="bi bi-headset"></i> @(isBangla ? "কাস্টমার সার্ভিস: ১৬৭৮৯" : "Customer Service: 16789")</span>
+                    <a href="/orders" class="ms-4 d-inline-flex align-items-center gap-1"><i class="bi bi-truck"></i> @(isBangla ? "অর্ডার ট্র্যাক করুন" : "Track Order")</a>
+                </div>
+                <div>
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        @if (User.IsInRole("Seller"))
+                        {
+                            <a href="/seller/dashboard"><i class="bi bi-shop"></i> @(isBangla ? "সেলার পোর্টাল" : "Seller Portal")</a>
+                        }
+                    }
+                    else
+                    {
+                        <a href="/auth/register-seller"><i class="bi bi-shop"></i> @(isBangla ? "সেলার হোন" : "Become a Seller")</a>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Navigation -->
+    <nav class="main-nav">
+        <div class="container">
+            <div class="d-flex align-items-center">
+                <!-- Logo -->
+                <a href="/" class="sparkle-logo d-flex align-items-center text-decoration-none">
+                    <img src="/images/logo.png" alt="Sparkle" style="height: 55px; width: auto;" />
+                </a>
+
+                <!-- Search Box -->
+                <div class="search-wrapper flex-grow-1">
+                    <form class="search-box d-flex w-100" method="get" action="/search">
+                        <select class="category-dropdown" name="category" onchange="if(this.value) window.location.href='/category/'+this.value">
+                            <option value="">@(isBangla ? "সব ক্যাটাগরি" : "All Categories")</option>
+                            <option value="electronics-gadgets">Electronics & Gadgets</option>
+                            <option value="fashion-lifestyle">Fashion & Lifestyle</option>
+                            <option value="home-living">Home & Living</option>
+                            <option value="mobiles-tablets">Mobiles & Tablets</option>
+                            <option value="laptops-computers">Laptops & Computers</option>
+                            <option value="home-appliances">Home Appliances</option>
+                            <option value="kitchen-small-appliances">Kitchen & Small Appliances</option>
+                            <option value="beauty-personal-care">Beauty & Personal Care</option>
+                            <option value="jewelry-accessories">Jewelry & Accessories</option>
+                            <option value="groceries-essentials">Groceries & Essentials</option>
+                            <option value="baby-kids-mom">Baby, Kids & Mom</option>
+                            <option value="toys-games">Toys & Games</option>
+                            <option value="books-stationery">Books & Stationery</option>
+                            <option value="sports-outdoors">Sports & Outdoors</option>
+                            <option value="automotive-bike">Automotive & Bike</option>
+                            <option value="pet-supplies">Pet Supplies</option>
+                            <option value="local-bd-brands">Local BD Brands</option>
+                            <option value="medicine-wellness">Medicine & Wellness</option>
+                            <option value="photography-camera">Photography & Camera</option>
+                            <option value="art-crafts">Art & Crafts</option>
+                            <option value="musical-instruments">Musical Instruments</option>
+                            <option value="garden-outdoor">Garden & Outdoor</option>
+                            <option value="travel-luggage">Travel & Luggage</option>
+                            <option value="fitness-gym">Fitness & Gym</option>
+                        </select>
+                        <input type="text" class="search-input flex-grow-1" placeholder="@(isBangla ? "প্রোডাক্ট খুঁজুন..." : "Search for products...")" id="searchInput" name="q">
+                        <button class="search-btn" type="submit">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Right Section -->
+                <div class="d-flex align-items-center justify-content-end header-actions-card ms-auto">
+                    <!-- Delivery Location -->
+                    <a href="#" class="text-white text-decoration-none d-flex align-items-center gap-1">
+                        <i class="bi bi-geo-alt fs-5"></i>
+                        <div class="d-flex flex-column" style="line-height: 1;">
+                            <span style="font-size: 10px; opacity: 0.8;">@(isBangla ? "ডেলিভারি" : "Deliver to")</span>
+                            <span class="fw-bold" style="font-size: 12px;">@(isBangla ? "বাংলাদেশ" : "Bangladesh")</span>
+                        </div>
+                    </a>
+
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <!-- Account Info (View Only) -->
+                        <div class="text-white d-flex align-items-center gap-1 cursor-default">
+                             <i class="bi bi-person fs-5"></i>
+                             <div class="d-flex flex-column" style="line-height: 1;">
+                                 <span class="fw-bold" style="font-size: 12px;">@(currentUser?.FullName ?? User.Identity.Name)</span>
+                                 <span style="font-size: 10px; opacity: 0.8;">@(currentUser?.Email ?? "")</span>
+                             </div>
+                        </div>
+                        
+                    }
+                    else
+                    {
+                         <a href="/auth/login" class="text-white text-decoration-none d-flex align-items-center gap-1">
+                              <i class="bi bi-person fs-5"></i>
+                              <div class="d-flex flex-column text-start" style="line-height: 1;">
+                                  <span style="font-size: 10px; opacity: 0.8;">@(isBangla ? "স্বাগতম" : "Welcome")</span>
+                                  <span class="fw-bold" style="font-size: 12px;">@(isBangla ? "লগ ইন / রেজিঃ" : "Login / Register")</span>
+                              </div>
+                         </a>
+                    }
+
+                    <!-- Cart (Moved Here) -->
+                    <a href="/cart" class="cart-icon">
+                        <i class="bi bi-cart3"></i>
+                        <span class="cart-badge" id="cartCount">0</span>
+                    </a>
+
+
+                    <!-- Settings (Hamburger) - Only for Authenticated Users -->
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <div class="dropdown ms-auto">
+                            <a href="#" class="settings-icon text-white text-decoration-none d-flex align-items-center" data-bs-toggle="dropdown" aria-expanded="false" title="Menu">
+                                <i class="bi bi-list fs-4"></i>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="/profile"><i class="bi bi-person-circle"></i> @(isBangla ? "অ্যাকাউন্ট তথ্য" : "Account Info")</a></li>
+                                <li><a class="dropdown-item" href="/orders"><i class="bi bi-box-seam"></i> @(isBangla ? "অর্ডার তথ্য" : "Order Info")</a></li>
+                                <li><a class="dropdown-item" href="/profile/security"><i class="bi bi-gear"></i> @(isBangla ? "সেটিংস" : "Settings")</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="post" action="/auth/logout" class="d-inline">
+                                        <button type="submit" class="dropdown-item">
+                                            <i class="bi bi-box-arrow-right"></i> @(isBangla ? "সাইন আউট" : "Sign Out")
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main role="main">
+        <!-- Toast Notifications -->
+        @if (TempData["Success"] != null)
+        {
+            <div class="position-fixed top-0 end-0 p-3" style="z-index: 11000;">
+                <div class="toast show align-items-center text-white bg-success border-0" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            </div>
+        }
+        
+        @if (TempData["Error"] != null)
+        {
+            <div class="position-fixed top-0 end-0 p-3" style="z-index: 11000;">
+                <div class="toast show align-items-center text-white bg-danger border-0" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="bi bi-exclamation-triangle me-2"></i>@TempData["Error"]
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            </div>
+        }
+        
+        @if (TempData["Info"] != null)
+        {
+            <div class="position-fixed top-0 end-0 p-3" style="z-index: 11000;">
+                <div class="toast show align-items-center text-white bg-info border-0" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="bi bi-info-circle me-2"></i>@TempData["Info"]
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            </div>
+        }
+        
+        @RenderBody()
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white mt-5 py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-3">
+                    <h5>@(isBangla ? "স্পার্কল সম্পর্কে জানুন" : "Get to Know Sparkle")</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="/about" class="text-white-50">@(isBangla ? "আমাদের সম্পর্কে" : "About Us")</a></li>
+                        <li><a href="/careers" class="text-white-50">@(isBangla ? "ক্যারিয়ার" : "Careers")</a></li>
+                        <li><a href="/sustainability" class="text-white-50">@(isBangla ? "টেকসই উদ্যোগ" : "Sustainability")</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <h5>@(isBangla ? "স্পার্কলের সাথে আয় করুন" : "Make Money with Sparkle")</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="/sell" class="text-white-50">@(isBangla ? "স্পার্কলে বিক্রি করুন" : "Sell on Sparkle")</a></li>
+                        <li><a href="/affiliate" class="text-white-50">@(isBangla ? "অ্যাফিলিয়েট হোন" : "Become an Affiliate")</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <h5>@(isBangla ? "পেমেন্ট পদ্ধতি" : "Payment Methods")</h5>
+                    <ul class="list-unstyled">
+                        <li class="text-white-50">bKash | Nagad | Rocket</li>
+                        <li class="text-white-50">@(isBangla ? "ক্রেডিট/ডেবিট কার্ড" : "Credit/Debit Cards")</li>
+                        <li class="text-white-50">@(isBangla ? "ক্যাশ অন ডেলিভারি" : "Cash on Delivery")</li>
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <h5>@(isBangla ? "কাস্টমার সার্ভিস" : "Customer Service")</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="/help" class="text-white-50">@(isBangla ? "হেল্প সেন্টার" : "Help Center")</a></li>
+                        <li><a href="/returns" class="text-white-50">@(isBangla ? "রিটার্নস" : "Returns")</a></li>
+                        <li><a href="/shipping" class="text-white-50">@(isBangla ? "শিপিং তথ্য" : "Shipping Info")</a></li>
+                    </ul>
+                </div>
+            </div>
+            <hr class="bg-secondary">
+            <div class="text-center text-white-50">
+                @(isBangla ? "© ২০২৪ Sparkle.com | সর্বস্বত্ব সংরক্ষিত" : "© 2024 Sparkle.com | All Rights Reserved")
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+
+    
+    <script>
+        // Auto-hide toast notifications after 5 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            const toasts = document.querySelectorAll('.toast');
+            toasts.forEach(toast => {
+                setTimeout(() => {
+                    const bsToast = bootstrap.Toast.getOrCreateInstance(toast);
+                    bsToast.hide();
+                }, 5000);
+            });
+        });
+        
+        // Load cart count
+        fetch('/cart/count')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('cartCount').textContent = data.count;
+            })
+            .catch(err => console.error('Failed to load cart count', err));
+
+        // Initialize SignalR connections
+        const inventoryConnection = new signalR.HubConnectionBuilder()
+            .withUrl("/hubs/inventory")
+            .withAutomaticReconnect()
+            .build();
+
+        const notificationConnection = new signalR.HubConnectionBuilder()
+            .withUrl("/hubs/notification")
+            .withAutomaticReconnect()
+            .build();
+
+        // Start connections
+        inventoryConnection.start().catch(err => console.error('Inventory Hub Error:', err));
+        notificationConnection.start().catch(err => console.error('Notification Hub Error:', err));
+
+        // Listen for stock updates
+        inventoryConnection.on("ReceiveStockUpdate", (data) => {
+            console.log('Stock Update:', data);
+            // Update UI with real-time stock changes
+            const stockElement = document.querySelector(`[data-product-id="${data.productId}"] .stock-level`);
+            if (stockElement) {
+                stockElement.textContent = data.stockLevel;
+                if (data.isLowStock) {
+                    stockElement.classList.add('text-danger');
+                    stockElement.textContent += ' (Low Stock!)';
+                }
+            }
+        });
+
+        // Listen for notifications
+        notificationConnection.on("ReceiveNotification", (data) => {
+            showNotification(data.title, data.message, data.type);
+        });
+
+        // Show toast notification
+        function showNotification(title, message, type) {
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
+            toast.style.zIndex = '9999';
+            toast.innerHTML = `<strong>${title}</strong><br>${message}`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+
+        // Update cart count from backend for authenticated users, fallback to localStorage for guests
+        function updateCartCount() {
+            const badge = document.getElementById('cartCount');
+            if (!badge) return;
+
+            if (window.isAuthenticated === 'true') {
+                fetch('/cart/count')
+                    .then(response => response.ok ? response.json() : { count: 0 })
+                    .then(data => {
+                        const count = (data && typeof data.count === 'number') ? data.count : 0;
+                        badge.textContent = count > 99 ? '99+' : count;
+                    })
+                    .catch(() => {
+                        badge.textContent = '0';
+                    });
+            } else {
+                // Get existing cart from localStorage
+                const cart = JSON.parse(localStorage.getItem('sparkle-cart') || '[]');
+                const count = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                badge.textContent = count > 99 ? '99+' : count;
+            }
+        }
+        
+        updateCartCount();
+        window.addEventListener('storage', updateCartCount);
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

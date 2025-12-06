@@ -1,0 +1,246 @@
+@model List<Sparkle.Domain.Catalog.Product>
+@{
+    ViewData["Title"] = "Manage Products";
+    var seller = ViewBag.Seller as Sparkle.Domain.Sellers.Seller;
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-0">📦 Manage Products</h2>
+                    <p class="text-muted">Total: @Model.Count products | Active: @Model.Count(p => p.IsActive)</p>
+                </div>
+                <a href="/Seller/Dashboard" class="btn btn-outline-primary">
+                    ← Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.Any())
+    {
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th style="width: 80px;">Image</th>
+                                <th>Product Info</th>
+                                <th style="width: 120px;">Category</th>
+                                <th style="width: 120px;">Status</th>
+                                <th style="width: 150px;">Stock</th>
+                                <th style="width: 150px;">Price</th>
+                                <th style="width: 100px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var product in Model)
+                            {
+                                var firstImage = product.Images?.FirstOrDefault()?.Url ?? "https://via.placeholder.com/80x80/e0e0e0/757575?text=No+Image";
+                                var isAdmin = product.IsAdminProduct;
+                                
+                                <tr id="product-@product.Id">
+                                    <td>
+                                        <img src="@firstImage" alt="@product.Title" class="img-thumbnail" style="width: 60px; height: 60px; object-fit: cover;">
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong class="d-block">@product.Title</strong>
+                                            @if (isAdmin)
+                                            {
+                                                <span class="badge bg-warning text-dark">⭐ Admin Product - Read Only</span>
+                                            }
+                                            <small class="text-muted d-block">@product.ShortDescription</small>
+                                            <small class="text-muted">@product.Variants.Count variant(s)</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">@(product.Category?.Name ?? "N/A")</span>
+                                    </td>
+                                    <td>
+                                        @if (!isAdmin)
+                                        {
+                                            <button class="btn btn-sm @(product.IsActive ? "btn-success" : "btn-secondary") toggle-status" 
+                                                    data-product-id="@product.Id"
+                                                    data-status="@product.IsActive">
+                                                @(product.IsActive ? "✓ Active" : "✗ Inactive")
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge @(product.IsActive ? "bg-success" : "bg-secondary")">
+                                                @(product.IsActive ? "Active" : "Inactive")
+                                            </span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @foreach (var variant in product.Variants)
+                                        {
+                                            <div class="mb-2" id="variant-stock-@variant.Id">
+                                                <small class="d-block text-muted">@variant.Color @variant.Size</small>
+                                                @if (!isAdmin)
+                                                {
+                                                    <div class="input-group input-group-sm">
+                                                        <input type="number" class="form-control stock-input" 
+                                                               data-variant-id="@variant.Id" 
+                                                               value="@variant.Stock" 
+                                                               min="0" 
+                                                               style="max-width: 80px;">
+                                                        <button class="btn btn-outline-primary btn-sm update-stock" 
+                                                                data-variant-id="@variant.Id">
+                                                            Update
+                                                        </button>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-light text-dark">Stock: @variant.Stock</span>
+                                                }
+                                            </div>
+                                        }
+                                    </td>
+                                    <td>
+                                        @foreach (var variant in product.Variants)
+                                        {
+                                            <div class="mb-2" id="variant-price-@variant.Id">
+                                                <small class="d-block text-muted">@variant.Color @variant.Size</small>
+                                                @if (!isAdmin)
+                                                {
+                                                    <div class="input-group input-group-sm">
+                                                        <span class="input-group-text">৳</span>
+                                                        <input type="number" class="form-control price-input" 
+                                                               data-variant-id="@variant.Id" 
+                                                               value="@variant.Price" 
+                                                               min="0" 
+                                                               step="0.01"
+                                                               style="max-width: 90px;">
+                                                        <button class="btn btn-outline-success btn-sm update-price" 
+                                                                data-variant-id="@variant.Id">
+                                                            Update
+                                                        </button>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-light text-dark">৳@variant.Price</span>
+                                                }
+                                            </div>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (isAdmin)
+                                        {
+                                            <span class="text-muted small">No Actions</span>
+                                        }
+                                        else
+                                        {
+                                            <a href="/Home/Product/@product.Slug" class="btn btn-sm btn-outline-secondary" target="_blank" title="View Product">
+                                                👁️ View
+                                            </a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <h4>📦 No products yet</h4>
+            <p>You don't have any products in your store. Products will appear here once they are added.</p>
+        </div>
+    }
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle product status
+    document.querySelectorAll('.toggle-status').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const productId = this.dataset.productId;
+            const response = await fetch('/Seller/Dashboard/ToggleProductStatus', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ productId: parseInt(productId) })
+            });
+            const data = await response.json();
+            if (data.success) {
+                this.classList.toggle('btn-success');
+                this.classList.toggle('btn-secondary');
+                this.textContent = data.isActive ? '✓ Active' : '✗ Inactive';
+                this.dataset.status = data.isActive;
+            } else {
+                alert(data.message || 'Error toggling status');
+            }
+        });
+    });
+
+    // Update stock
+    document.querySelectorAll('.update-stock').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const variantId = parseInt(this.dataset.variantId);
+            const stockInput = document.querySelector(`.stock-input[data-variant-id="${variantId}"]`);
+            const stock = parseInt(stockInput.value);
+            
+            const response = await fetch('/Seller/Dashboard/UpdateStock', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ variantId, stock })
+            });
+            const data = await response.json();
+            if (data.success) {
+                this.classList.add('btn-success');
+                this.textContent = '✓ Updated';
+                setTimeout(() => {
+                    this.classList.remove('btn-success');
+                    this.textContent = 'Update';
+                }, 2000);
+            } else {
+                alert(data.message || 'Error updating stock');
+            }
+        });
+    });
+
+    // Update price
+    document.querySelectorAll('.update-price').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const variantId = parseInt(this.dataset.variantId);
+            const priceInput = document.querySelector(`.price-input[data-variant-id="${variantId}"]`);
+            const price = parseFloat(priceInput.value);
+            
+            const response = await fetch('/Seller/Dashboard/UpdatePrice', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ variantId, price })
+            });
+            const data = await response.json();
+            if (data.success) {
+                this.classList.add('btn-success');
+                this.textContent = '✓ Updated';
+                setTimeout(() => {
+                    this.classList.remove('btn-success');
+                    this.textContent = 'Update';
+                }, 2000);
+            } else {
+                alert(data.message || 'Error updating price');
+            }
+        });
+    });
+});
+</script>
+
+<style>
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    .input-group-sm .form-control {
+        font-size: 0.875rem;
+    }
+</style>

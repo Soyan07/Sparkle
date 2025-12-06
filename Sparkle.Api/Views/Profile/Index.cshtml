@@ -1,0 +1,193 @@
+@model Sparkle.Api.Controllers.ProfileController.ProfileViewModel
+@{
+    ViewData["Title"] = "Account Info";
+    Layout = "_ProfileLayout";
+    var langCookie = Context.Request.Cookies["sparkle-lang"] == "bn" ? "bn" : "en";
+    var isBangla = langCookie == "bn";
+}
+
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
+        height: 100%;
+        border: 1px solid #e2e8f0;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .bg-purple-light { background: #f3e8ff; color: #9333ea; }
+    .bg-blue-light { background: #e0e7ff; color: #4f46e5; }
+    .bg-green-light { background: #dcfce7; color: #16a34a; }
+
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .status-pending { background: #fff7ed; color: #c2410c; }
+    .status-processing { background: #eff6ff; color: #1d4ed8; }
+    .status-shipped { background: #f0fdf4; color: #15803d; }
+    .status-delivered { background: #f0fdf4; color: #15803d; }
+    .status-cancelled { background: #fef2f2; color: #b91c1c; }
+</style>
+
+<!-- Dashboard Stats -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon bg-blue-light">
+                <i class="bi bi-box-seam"></i>
+            </div>
+            <h3 class="fw-bold mb-1">@Model.TotalOrders</h3>
+            <p class="text-muted mb-0">@(isBangla ? "মোট অর্ডার" : "Total Orders")</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon bg-green-light">
+                <i class="bi bi-currency-dollar"></i>
+            </div>
+            <h3 class="fw-bold mb-1">৳@Model.TotalSpent.ToString("N0")</h3>
+            <p class="text-muted mb-0">@(isBangla ? "মোট খরচ" : "Total Spent")</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon bg-purple-light">
+                <i class="bi bi-star"></i>
+            </div>
+            <h3 class="fw-bold mb-1">0</h3>
+            <p class="text-muted mb-0">@(isBangla ? "রিওয়ার্ড পয়েন্ট" : "Reward Points")</p>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+        <h4 class="mb-4">@(isBangla ? "প্রোফাইল তথ্য" : "Account Info")</h4>
+
+        <form method="post" asp-action="Update" asp-controller="Profile" enctype="multipart/form-data">
+            
+            <!-- Photo Upload -->
+            <div class="d-flex align-items-center mb-4 pb-4 border-bottom">
+                <div class="position-relative me-4">
+                    @if (!string.IsNullOrEmpty(Model.ProfilePhotoPath))
+                    {
+                        <img src="@Model.ProfilePhotoPath" class="rounded-circle object-fit-cover" style="width: 100px; height: 100px;" id="previewImg" />
+                    }
+                    else
+                    {
+                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center text-secondary" style="width: 100px; height: 100px;">
+                            <i class="bi bi-person-fill" style="font-size: 3rem;"></i>
+                        </div>
+                    }
+                </div>
+                <div>
+                    <div class="d-flex gap-2 mb-2">
+                        <label for="ProfilePhoto" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-camera"></i> @(isBangla ? "ছবি পরিবর্তন" : "Change Photo")
+                        </label>
+                        @if (!string.IsNullOrEmpty(Model.ProfilePhotoPath))
+                        {
+                            <button type="button" onclick="deletePhoto()" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        }
+                    </div>
+                    <small class="text-muted d-block">JPG, GIF or PNG. Max size of 800K</small>
+                    <input type="file" asp-for="ProfilePhoto" id="ProfilePhoto" class="d-none" onchange="previewFile()" />
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="FullName" class="form-label">@(isBangla ? "পুরো নাম" : "Full Name")</label>
+                    <input asp-for="FullName" class="form-control" />
+                    <span asp-validation-for="FullName" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Email" class="form-label">@(isBangla ? "ইমেইল" : "Email Address")</label>
+                    <input asp-for="Email" class="form-control bg-light" readonly />
+                    <div class="form-text">Email cannot be changed.</div>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="ContactPhone" class="form-label">@(isBangla ? "মোবাইল নম্বর" : "Phone Number")</label>
+                    <input asp-for="ContactPhone" class="form-control" placeholder="01XXXXXXXXX" />
+                    <span asp-validation-for="ContactPhone" class="text-danger"></span>
+                </div>
+                
+                <div class="col-md-6">
+                    <label asp-for="DateOfBirth" class="form-label">@(isBangla ? "জন্ম তারিখ" : "Date of Birth")</label>
+                    <input asp-for="DateOfBirth" type="date" class="form-control" />
+                    <span asp-validation-for="DateOfBirth" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="mt-4 pt-3 border-top d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary px-4">
+                    @(isBangla ? "পরিবর্তন সংরক্ষণ করুন" : "Save Changes")
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+
+<script>
+    function previewFile() {
+        const preview = document.querySelector('#previewImg');
+        const file = document.querySelector('input[type=file]').files[0];
+        const reader = new FileReader();
+
+        reader.addEventListener("load", function () {
+            if (preview) {
+                preview.src = reader.result;
+            } else {
+                // If it was a div placeholder, we need to reload or handle differently
+                location.reload(); // Simple fallback
+            }
+        }, false);
+
+        if (file) {
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function deletePhoto() {
+        if (!confirm('@(isBangla ? "আপনি কি নিশ্চিত?" : "Are you sure?")')) return;
+        
+        fetch('/profile/delete-photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        }).then(res => res.json()).then(data => {
+            if (data.success) location.reload();
+        });
+    }
+</script>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

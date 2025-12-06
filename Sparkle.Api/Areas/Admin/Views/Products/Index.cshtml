@@ -1,0 +1,123 @@
+@model List<Sparkle.Domain.Catalog.Product>
+@{
+    ViewData["Title"] = "Manage Products";
+    var currentPage = ViewBag.CurrentPage as int? ?? 1;
+    var totalPages = ViewBag.TotalPages as int? ?? 1;
+    var searchQuery = ViewBag.SearchQuery as string;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold mb-0">Products</h2>
+    <a href="#" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-2"></i> Add Product
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4 py-3">Product</th>
+                        <th class="py-3">Category</th>
+                        <th class="py-3">Price</th>
+                        <th class="py-3">Seller</th>
+                        <th class="py-3">Status</th>
+                        <th class="py-3 text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Any())
+                    {
+                        foreach (var product in Model)
+                        {
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-light rounded d-flex align-items-center justify-content-center me-3" style="width: 48px; height: 48px;">
+                                            <i class="bi bi-image text-muted"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold text-dark">@product.Title</div>
+                                            <div class="small text-muted">ID: #@product.Id</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">
+                                        @(product.Category?.Name ?? "Uncategorized")
+                                    </span>
+                                </td>
+                                <td class="fw-bold">৳@product.Price.ToString("N0")</td>
+                                <td>
+                                    @if (product.Seller != null)
+                                    {
+                                        <a href="/Admin/Sellers/Details/@product.SellerId" class="text-decoration-none">
+                                            @product.Seller.ShopName
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">System</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (product.IsActive)
+                                    {
+                                        <span class="badge bg-success-subtle text-success">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger-subtle text-danger">Inactive</span>
+                                    }
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="btn-group">
+                                        <a href="#" class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                <i class="bi bi-box-seam display-4 mb-3 d-block opacity-50"></i>
+                                No products found
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    @if (totalPages > 1)
+    {
+        <div class="card-footer bg-white border-top-0 py-3">
+            <nav>
+                <ul class="pagination justify-content-center mb-0">
+                    <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                        <a class="page-link" href="?page=@(currentPage - 1)&q=@searchQuery">Previous</a>
+                    </li>
+                    @for (var i = 1; i <= totalPages; i++)
+                    {
+                        <li class="page-item @(currentPage == i ? "active" : "")">
+                            <a class="page-link" href="?page=@i&q=@searchQuery">@i</a>
+                        </li>
+                    }
+                    <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                        <a class="page-link" href="?page=@(currentPage + 1)&q=@searchQuery">Next</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    }
+</div>

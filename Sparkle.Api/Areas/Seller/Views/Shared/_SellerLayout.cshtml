@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Seller Central</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            prefix: 'tw-',
+            corePlugins: {
+                preflight: false, // Disable preflight to avoid conflicts
+            },
+            theme: {
+                extend: {
+                    colors: {
+                        sc: {
+                            bg: '#f3f3f3',
+                            header: '#ffffff',
+                            text: '#0f1111',
+                            link: '#007185',
+                            border: '#d5d9d9',
+                            nav: '#232f3e',
+                            hover: '#f7fafa'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <style>
+        @@font-face {
+            font-family: 'SolaimanLipi';
+            src: url('https://cdn.jsdelivr.net/npm/solaimanlipi@1.0.0/SolaimanLipi.woff2') format('woff2');
+            font-weight: normal;
+            font-style: normal;
+        }
+        
+        body {
+            font-family: "Amazon Ember", Arial, sans-serif;
+            background-color: #f3f3f3;
+            margin: 0;
+            color: #0f1111;
+        }
+        
+        /* Reset some basic elements */
+        a { text-decoration: none; color: inherit; }
+        ul { list-style: none; padding: 0; margin: 0; }
+        
+        /* Header Styles */
+        .sc-header {
+            background: white;
+            border-bottom: 1px solid #d5d9d9;
+            padding: 0 1rem;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        .sc-logo {
+            font-size: 18px;
+            font-weight: 700;
+            color: #232f3e;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .sc-nav-bar {
+            background: white;
+            border-bottom: 1px solid #d5d9d9;
+            padding: 0 1rem;
+            display: flex;
+            gap: 2rem;
+            overflow-x: auto;
+            white-space: nowrap;
+            height: 45px;
+            align-items: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        
+        .sc-nav-item {
+            font-size: 14px;
+            font-weight: 600;
+            color: #444;
+            padding: 12px 0;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .sc-nav-item:hover, .sc-nav-item.active {
+            color: #007185;
+            border-bottom-color: #007185;
+        }
+        
+        .sc-main {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        /* Utility */
+        .text-link { color: #007185; }
+        .text-link:hover { text-decoration: underline; color: #c7511f; }
+    </style>
+</head>
+<body>
+    <!-- Top Header -->
+    <header class="sc-header">
+        <div class="tw-flex tw-items-center tw-gap-6">
+            <a href="/seller/dashboard" class="sc-logo">
+                <i class="bi bi-shop"></i> Seller Central
+            </a>
+            
+            <!-- Marketplace Switcher -->
+            <div class="tw-hidden md:tw-flex tw-items-center tw-gap-2 tw-px-3 tw-py-1 tw-bg-gray-100 tw-rounded tw-border tw-border-gray-300 tw-text-sm tw-cursor-pointer hover:tw-bg-gray-200">
+                <span>www.sparkle.com.bd</span>
+                <i class="bi bi-chevron-down tw-text-xs"></i>
+            </div>
+        </div>
+        
+        <div class="tw-flex tw-items-center tw-gap-4">
+            <div class="tw-relative tw-hidden md:tw-block">
+                <input type="text" placeholder="Search..." class="tw-px-3 tw-py-1 tw-border tw-border-gray-400 tw-rounded tw-w-64 tw-text-sm focus:tw-border-orange-500 focus:tw-outline-none">
+                <i class="bi bi-search tw-absolute tw-right-2 tw-top-1.5 tw-text-gray-500"></i>
+            </div>
+            
+            <div class="tw-flex tw-items-center tw-gap-4 tw-text-gray-600 tw-text-lg">
+                <a href="#" title="Messages"><i class="bi bi-envelope"></i></a>
+                <a href="#" title="Help"><i class="bi bi-question-circle"></i></a>
+                <a href="/seller/dashboard/store-settings" title="Settings"><i class="bi bi-gear"></i></a>
+            </div>
+            
+            <form action="/auth/logout" method="post" class="tw-m-0">
+                <button type="submit" class="tw-text-sm tw-font-medium tw-text-gray-700 hover:tw-text-red-600 tw-bg-transparent tw-border-0">
+                    Logout
+                </button>
+            </form>
+        </div>
+    </header>
+    
+    <!-- Navigation Bar -->
+    <nav class="sc-nav-bar">
+        <a href="/seller/dashboard" class="sc-nav-item active">Dashboard</a>
+        <a href="/seller/dashboard/products" class="sc-nav-item">Inventory</a>
+        <a href="#" class="sc-nav-item">Pricing</a>
+        <a href="#" class="sc-nav-item">Orders</a>
+        <a href="#" class="sc-nav-item">Advertising</a>
+        <a href="#" class="sc-nav-item">Stores</a>
+        <a href="#" class="sc-nav-item">Growth</a>
+        <a href="#" class="sc-nav-item">Reports</a>
+        <a href="#" class="sc-nav-item">Performance</a>
+        <a href="#" class="sc-nav-item">Apps & Services</a>
+        <a href="#" class="sc-nav-item">B2B</a>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="sc-main">
+        @RenderBody()
+    </main>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

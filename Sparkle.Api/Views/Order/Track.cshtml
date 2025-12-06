@@ -1,0 +1,148 @@
+@model Sparkle.Domain.Orders.Order
+@{
+    var langCookie = Context.Request.Cookies["sparkle-lang"] == "bn" ? "bn" : "en";
+    var isBangla = langCookie == "bn";
+    ViewData["Title"] = (isBangla ? "অর্ডার ট্র্যাক করুন #" : "Track Order #") + Model.Id;
+}
+
+<style>
+    .tracking-page { padding: 2rem 0; background: #f8f9fa; }
+    .tracking-header { background: white; padding: 2rem; border-radius: 8px; margin-bottom: 2rem; }
+    .status-timeline { background: white; padding: 2rem; border-radius: 8px; }
+    .timeline { position: relative; padding-left: 3rem; }
+    .timeline-item { position: relative; padding-bottom: 2rem; }
+    .timeline-item:last-child { padding-bottom: 0; }
+    .timeline-icon { position: absolute; left: -3rem; width: 40px; height: 40px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.2rem; }
+    .timeline-item.completed .timeline-icon { background: #28a745; }
+    .timeline-item.active .timeline-icon { background: #ff6a00; animation: pulse 2s infinite; }
+    @@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 106, 0, 0.7); } 50% { box-shadow: 0 0 0 10px rgba(255, 106, 0, 0); } }
+    .timeline-content h5 { margin: 0 0 0.5rem 0; }
+    .timeline-content p { margin: 0; color: #666; font-size: 0.9rem; }
+    .map-container { background: white; padding: 1.5rem; border-radius: 8px; height: 400px; display: flex; align-items: center; justify-content: center; background: #e9ecef; color: #6c757d; }
+</style>
+
+<div class="tracking-page">
+    <div class="container">
+        <div class="tracking-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2>@(isBangla ? "অর্ডার #" : "Order #")@Model.Id</h2>
+                    <p class="text-muted mb-0">@(isBangla ? "অর্ডার হয়েছে " : "Placed on ")@Model.CreatedAt.ToString("MMM dd, yyyy")</p>
+                </div>
+                <div>
+                    <span class="badge bg-@GetStatusColor(Model.Status) fs-5">@Model.Status</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="status-timeline">
+                    <h4 class="mb-4">@(isBangla ? "অর্ডার স্ট্যাটাস" : "Order Status")</h4>
+                    <div class="timeline">
+                        <div class="timeline-item @(Model.Status >= Sparkle.Domain.Orders.OrderStatus.Pending ? "completed" : "")">
+                            <div class="timeline-icon"><i class="bi bi-check"></i></div>
+                            <div class="timeline-content">
+                                <h5>@(isBangla ? "অর্ডার প্লেসড" : "Order Placed")</h5>
+                                <p>@Model.CreatedAt.ToString("MMM dd, yyyy HH:mm")</p>
+                            </div>
+                        </div>
+                        <div class="timeline-item @(Model.Status >= Sparkle.Domain.Orders.OrderStatus.Processing ? "completed" : "") @(Model.Status == Sparkle.Domain.Orders.OrderStatus.Processing ? "active" : "")">
+                            <div class="timeline-icon"><i class="bi bi-box-seam"></i></div>
+                            <div class="timeline-content">
+                                <h5>@(isBangla ? "প্রসেসিং" : "Processing")</h5>
+                                <p id="processingTime">@(isBangla ? "অর্ডার প্রসেসিং হচ্ছে..." : "Preparing order...")</p>
+                            </div>
+                        </div>
+                        <div class="timeline-item @(Model.Status >= Sparkle.Domain.Orders.OrderStatus.Shipped ? "completed" : "") @(Model.Status == Sparkle.Domain.Orders.OrderStatus.Shipped ? "active" : "")">
+                            <div class="timeline-icon"><i class="bi bi-truck"></i></div>
+                            <div class="timeline-content">
+                                <h5>@(isBangla ? "শিপড" : "Shipped")</h5>
+                                <p id="shippedTime">@(isBangla ? "শিপমেন্টের জন্য অপেক্ষা করছে..." : "Waiting for shipment...")</p>
+                            </div>
+                        </div>
+                        <div class="timeline-item @(Model.Status >= Sparkle.Domain.Orders.OrderStatus.Delivered ? "completed" : "") @(Model.Status == Sparkle.Domain.Orders.OrderStatus.Delivered ? "active" : "")">
+                            <div class="timeline-icon"><i class="bi bi-house-check"></i></div>
+                            <div class="timeline-content">
+                                <h5>@(isBangla ? "ডেলিভারড" : "Delivered")</h5>
+                                <p id="deliveredTime">@(isBangla ? "এখনও ডেলিভারি হয়নি" : "Not yet delivered")</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="map-container">
+                    <div class="text-center">
+                        <i class="bi bi-geo-alt-fill" style="font-size: 4rem;"></i>
+                        <h5 class="mt-3">@(isBangla ? "লাইভ ট্র্যাকিং" : "Live Tracking")</h5>
+                        <p>@(isBangla ? "অর্ডার শিপ হলে ডেলিভারি পার্টনারের অবস্থান এখানে দেখাবে" : "Delivery partner location will appear here when order is shipped")</p>
+                        <div id="liveLocation" class="mt-3" style="display:none;">
+                            <p><strong>@(isBangla ? "বর্তমান অবস্থান:" : "Current Location:")</strong> <span id="currentLocation">--</span></p>
+                            <p><strong>@(isBangla ? "আনুমানিক সময় (ETA):" : "ETA:")</strong> <span id="eta">--</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3 p-3 bg-white rounded">
+                    <h5>@(isBangla ? "ডেলিভারি ঠিকানা" : "Delivery Address")</h5>
+                    <p class="mb-0">
+                        <strong>@Model.ShippingAddress?.FullName</strong><br>
+                        @Model.ShippingAddress?.Phone<br>
+                        @Model.ShippingAddress?.Line1, @Model.ShippingAddress?.City<br>
+                        @Model.ShippingAddress?.State @Model.ShippingAddress?.PostalCode
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    string GetStatusColor(Sparkle.Domain.Orders.OrderStatus status)
+    {
+        return status switch
+        {
+            Sparkle.Domain.Orders.OrderStatus.Pending => "warning",
+            Sparkle.Domain.Orders.OrderStatus.Processing => "info",
+            Sparkle.Domain.Orders.OrderStatus.Shipped => "primary",
+            Sparkle.Domain.Orders.OrderStatus.Delivered => "success",
+            Sparkle.Domain.Orders.OrderStatus.Cancelled => "danger",
+            _ => "secondary"
+        };
+    }
+}
+
+<script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@latest/dist/browser/signalr.min.js"></script>
+<script>
+    const orderId = @Model.Id;
+    
+    // Connect to OrderTracking SignalR Hub
+    const trackingConnection = new signalR.HubConnectionBuilder()
+        .withUrl("/hubs/ordertracking")
+        .withAutomaticReconnect()
+        .build();
+
+    trackingConnection.on("ReceiveOrderUpdate", (orderIdReceived, status, timestamp) => {
+        if (orderIdReceived === orderId) {
+            console.log(`Order ${orderIdReceived} status updated to ${status}`);
+            location.reload(); // Simple reload for now
+        }
+    });
+
+    trackingConnection.on("ReceiveLocationUpdate", (orderIdReceived, location, eta) => {
+        if (orderIdReceived === orderId) {
+            document.getElementById('liveLocation').style.display = 'block';
+            document.getElementById('currentLocation').textContent = location;
+            document.getElementById('eta').textContent = eta;
+        }
+    });
+
+    trackingConnection.start()
+        .then(() => {
+            console.log("Connected to tracking hub");
+            trackingConnection.invoke("JoinOrderTracking", orderId);
+        })
+        .catch(err => console.error("Error connecting to tracking hub:", err));
+</script>

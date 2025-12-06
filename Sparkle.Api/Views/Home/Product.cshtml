@@ -1,0 +1,559 @@
+@using Sparkle.Domain.Catalog
+@model Product
+@{
+    var langCookie = Context.Request.Cookies["sparkle-lang"] == "bn" ? "bn" : "en";
+    var isBangla = langCookie == "bn";
+    ViewData["Title"] = Model.Title;
+    var firstImage = Model.Images.FirstOrDefault()?.Url ?? "https://via.placeholder.com/600x600";
+    var discountPercent = Model.DiscountPercent ?? 0;
+    var discountedPrice = Model.BasePrice * (1 - discountPercent / 100);
+}
+
+<!-- Clean Amazon-like Design -->
+<div class="product-page" style="background: #f7f8fa;">
+<div class="container py-3">
+    <!-- Clean Breadcrumb & Back Button -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0" style="font-size: 0.875rem;">
+                <li class="breadcrumb-item"><a href="/" class="text-decoration-none" style="color: #007185;">@(isBangla ? "হোম" : "Home")</a></li>
+                <li class="breadcrumb-item"><a href="/search?category=@Model.Category?.Slug" class="text-decoration-none" style="color: #007185;">@Model.Category?.Name</a></li>
+                <li class="breadcrumb-item active" style="color: #565959;">@Model.Title</li>
+            </ol>
+        </nav>
+        <a href="javascript:history.back()" class="btn btn-sm btn-outline-secondary" style="font-size: 0.875rem;">
+            <i class="bi bi-arrow-left me-1"></i> @(isBangla ? "ফিরে যান" : "Back")
+        </a>
+    </div>
+
+    <div class="row g-3">
+        <!-- Product Gallery (Left Side) -->
+        <div class="col-lg-5">
+            <div class="product-gallery bg-white p-3" style="border: 1px solid #ddd; border-radius: 8px;">
+                <!-- Main Image -->
+                <div class="main-image-container mb-3 position-relative text-center" style="background: #fff; padding: 20px;">
+                    <img src="@firstImage" class="img-fluid" id="mainProductImage" alt="@Model.Title" style="max-height: 500px; object-fit: contain;">
+                    @if (Model.DiscountPercent > 0)
+                    {
+                        <span class="badge position-absolute top-0 start-0 m-2 bg-danger" style="font-size: 0.875rem; padding: 6px 10px;">
+                            -@Model.DiscountPercent%
+                        </span>
+                    }
+                </div>
+
+                <!-- Thumbnail Gallery -->
+                @if (Model.Images.Count > 1)
+                {
+                    <div class="thumbnail-gallery d-flex gap-2 overflow-auto pb-2">
+                        @foreach (var img in Model.Images)
+                        {
+                            <img src="@img.Url" class="thumbnail-img border" 
+                                 onclick="changeMainImage('@img.Url')" alt="Product view"
+                                 style="width: 60px; height: 60px; object-fit: cover; cursor: pointer; border-radius: 4px;">
+                        }
+                    </div>
+                }
+
+                <!-- Action Buttons -->
+                <div class="d-grid gap-2 mt-3">
+                    <button class="btn btn-warning btn-lg" onclick="addToCart(@Model.Id)" style="background: #ffd814; border: 1px solid #fcd200; color: #0f1111; font-weight: 500; border-radius: 8px; padding: 10px;">
+                        <i class="bi bi-cart-plus me-1"></i> @(isBangla ? "কার্টে যোগ করুন" : "Add to Cart")
+                    </button>
+                    <button class="btn btn-lg" onclick="buyNow(@Model.Id)" style="background: #ffa41c; border: 1px solid #ff8f00; color: #0f1111; font-weight: 500; border-radius: 8px; padding: 10px;">
+                        <i class="bi bi-lightning-charge-fill me-1"></i> @(isBangla ? "এখনই কিনুন" : "Buy Now")
+                    </button>
+                    <button class="btn btn-outline-secondary btn-lg" onclick="addToWishlist(@Model.Id)" style="border-radius: 8px; padding: 10px;">
+                        <i class="bi bi-heart me-1"></i> @(isBangla ? "উইশলিস্ট" : "Add to Wishlist")
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Info (Middle Section) -->
+        <div class="col-lg-4">
+            <div class="product-info bg-white p-3" style="border: 1px solid #ddd; border-radius: 8px;">
+                <!-- Title -->
+                <h1 class="h4 mb-2" style="color: #0f1111; font-weight: 400; line-height: 1.4;">
+                    @Model.Title
+                </h1>
+                
+                <!-- Rating -->
+                <div class="rating-section mb-3">
+                    <div class="d-flex align-items-center gap-2" style="font-size: 0.875rem;">
+                        <span class="text-warning">★★★★☆</span>
+                        <a href="#reviews" class="text-decoration-none" style="color: #007185;">@(isBangla ? "২৫৬টি রেটিং" : "256 ratings")</a>
+                        @if (Model.IsAdminProduct)
+                        {
+                            <span class="ms-2 badge bg-warning text-dark">Sparkle's Choice</span>
+                        }
+                    </div>
+                </div>
+
+                <hr style="border-color: #e3e6e6; margin: 1rem 0;">
+
+                <!-- Price Section -->
+                <div class="price-section mb-3">
+                    <div class="d-flex align-items-baseline gap-2 mb-1">
+                        @if (Model.DiscountPercent > 0)
+                        {
+                            <span style="font-size: 0.875rem; color: #565959;">-@Model.DiscountPercent%</span>
+                        }
+                        <span class="fw-bold" style="font-size: 1.75rem; color: #b12704;">৳ @((int)discountedPrice)</span>
+                    </div>
+                    @if (Model.DiscountPercent > 0)
+                    {
+                        <div style="font-size: 0.875rem; color: #565959;">
+                            @(isBangla ? "M.R.P.:" : "M.R.P.:")
+                            <span class="text-decoration-line-through">৳ @((int)Model.BasePrice)</span>
+                        </div>
+                    }
+                    <small style="color: #007600; font-size: 0.875rem;">@(isBangla ? "সমস্ত ট্যাক্সসহ" : "Inclusive of all taxes")</small>
+                </div>
+
+                <hr style="border-color: #e3e6e6; margin: 1rem 0;">
+
+                <!-- Product Variants -->
+                @if (Model.Variants.Any())
+                {
+                    <div class="variants-section mb-4">
+                        <h6 class="fw-bold mb-3">@(isBangla ? "অপশন নির্বাচন করুন:" : "Select Options:")</h6>
+                        
+                        @if (Model.Variants.Select(v => v.Color).Distinct().Count() > 1)
+                        {
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">@(isBangla ? "রং:" : "Color:")</label>
+                                <div class="btn-group" role="group">
+                                    @foreach (var color in Model.Variants.Select(v => v.Color).Distinct())
+                                    {
+                                        <input type="radio" class="btn-check" name="color" id="color-@color" value="@color">
+                                        <label class="btn btn-outline-primary" for="color-@color">@color</label>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        @if (Model.Variants.Select(v => v.Size).Distinct().Count() > 1)
+                        {
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">@(isBangla ? "সাইজ/ক্ষমতা:" : "Size/Capacity:")</label>
+                                <div class="btn-group" role="group">
+                                    @foreach (var size in Model.Variants.Select(v => v.Size).Distinct())
+                                    {
+                                        <input type="radio" class="btn-check" name="size" id="size-@size" value="@size">
+                                        <label class="btn btn-outline-primary" for="size-@size">@size</label>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                <!-- About Item -->
+                <div class="about-section mb-3">
+                    <h6 style="font-weight: 700; font-size: 1rem; color: #0f1111; margin-bottom: 0.75rem;">@(isBangla ? "পণ্য সম্পর্কে:" : "About this item")</h6>
+                    <ul style="padding-left: 1.5rem; margin-bottom: 0; font-size: 0.875rem; color: #0f1111;">
+                        <li class="mb-1">@Model.ShortDescription</li>
+                        <li class="mb-1">@(isBangla ? "১০০% অরিজিনাল প্রোডাক্ট" : "100% Authentic Product")</li>
+                        <li class="mb-1">@(isBangla ? "৭ দিনের রিটার্ন পলিসি" : "7 Days Return Policy")</li>
+                        <li class="mb-1">@(isBangla ? "ক্যাশ অন ডেলিভারি সুবিধা" : "Cash on Delivery Available")</li>
+                    </ul>
+                </div>
+
+                @if (Model.Seller != null)
+                {
+                    <hr style="border-color: #e3e6e6; margin: 1rem 0;">
+                    <div class="seller-info" style="font-size: 0.875rem;">
+                        <span style="color: #565959;">@(isBangla ? "বিক্রেতা:" : "Sold by")</span>
+                        <a href="#" class="text-decoration-none" style="color: #007185;">@Model.Seller.ShopName</a>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Buy Box (Right Side) - Sticky -->
+        <div class="col-lg-3">
+            <div class="buy-box bg-white p-3 sticky-top" style="top: 80px; border: 1px solid #ddd; border-radius: 8px;" data-product-id="@Model.Id">
+                <div class="price-display mb-2">
+                    <div class="h5 fw-bold mb-0" style="color: #b12704;">৳ @((int)discountedPrice)</div>
+                    <small style="color: #007600; font-size: 0.875rem;">@(isBangla ? "ফ্রি ডেলিভারি" : "FREE Delivery")</small>
+                </div>
+
+                <hr style="border-color: #e3e6e6; margin: 1rem 0;">
+
+                <!-- Stock Status -->
+                @{
+                    var totalStock = Model.Variants.Sum(v => v.Stock);
+                }
+                @if (totalStock > 20)
+                {
+                    <div class="mb-3" style="font-size: 0.875rem; color: #007600;">
+                        <i class="bi bi-check-circle-fill me-1"></i> @(isBangla ? "স্টকে আছে" : "In Stock")
+                    </div>
+                }
+                else if (totalStock > 0)
+                {
+                    <div class="mb-3" style="font-size: 0.875rem; color: #b12704;">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i> @(isBangla ? $"মাত্র {totalStock}টি বাকি" : $"Only {totalStock} left")
+                    </div>
+                }
+                else
+                {
+                    <div class="mb-3" style="font-size: 0.875rem; color: #b12704;">
+                        <i class="bi bi-x-circle-fill me-1"></i> @(isBangla ? "স্টক শেষ" : "Out of Stock")
+                    </div>
+                }
+
+                <!-- Delivery Info -->
+                <div class="delivery-info mb-3" style="font-size: 0.875rem;">
+                    <div class="mb-2">
+                        <i class="bi bi-geo-alt-fill me-1" style="color: #007185;"></i>
+                        <span style="color: #007185;">@(isBangla ? "ঢাকায় ডেলিভারি" : "Deliver to Dhaka")</span>
+                    </div>
+                    <div style="color: #007600;">
+                        <i class="bi bi-truck me-1"></i>
+                        <strong>@(isBangla ? "আগামীকাল ফ্রি ডেলিভারি" : "FREE Delivery Tomorrow")</strong>
+                    </div>
+                    <small style="color: #565959;">@(isBangla ? "৬ ঘন্টার মধ্যে অর্ডার করুন" : "Order within 6 hours")</small>
+                </div>
+
+                <hr style="border-color: #e3e6e6; margin: 1rem 0;">
+
+                <!-- Quantity Selector -->
+                <div class="quantity-selector mb-3">
+                    <label class="form-label" style="font-size: 0.875rem; font-weight: 600; color: #0f1111;">@(isBangla ? "পরিমাণ:" : "Quantity:")</label>
+                    <select class="form-select" id="quantity" style="width: 80px; font-size: 0.875rem; padding: 0.375rem;">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                    </select>
+                </div>
+
+                <!-- Secure Transaction -->
+                <div class="secure-badge p-2 mb-2" style="background: #f7f8fa; border-radius: 4px; font-size: 0.75rem; color: #565959;">
+                    <i class="bi bi-lock-fill me-1"></i> @(isBangla ? "নিরাপদ লেনদেন" : "Secure transaction")
+                </div>
+
+                <!-- Ships from & Sold by -->
+                <div style="font-size: 0.75rem; color: #565959;">
+                    <div class="mb-1">
+                        <span>@(isBangla ? "শিপ করবে:" : "Ships from")</span>
+                        <span class="fw-semibold"> Sparkle</span>
+                    </div>
+                    <div>
+                        <span>@(isBangla ? "বিক্রয় করেছে:" : "Sold by")</span>
+                        <span class="fw-semibold"> @(Model.Seller?.ShopName ?? "Sparkle Official")</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Details Tabs -->
+    <div class="product-tabs mt-4 bg-white p-3" style="border: 1px solid #ddd; border-radius: 8px;">
+        <ul class="nav nav-tabs border-bottom mb-3" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#description" style="color: #0f1111; font-size: 0.875rem; padding: 0.75rem 1rem;">@(isBangla ? "বিবরণ" : "Description")</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#specifications" style="color: #0f1111; font-size: 0.875rem; padding: 0.75rem 1rem;">@(isBangla ? "বিস্তারিত" : "Specifications")</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#reviews" style="color: #0f1111; font-size: 0.875rem; padding: 0.75rem 1rem;">@(isBangla ? "রিভিউ" : "Customer Reviews")</a>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+            <!-- Description Tab -->
+            <div class="tab-pane fade show active" id="description">
+                <div style="font-size: 0.875rem; color: #0f1111; line-height: 1.6;">
+                    <h6 class="fw-bold mb-3" style="font-size: 1rem;">@(isBangla ? "পণ্যের বিবরণ" : "Product Description")</h6>
+                    <p>@Model.Description</p>
+                    
+                    <h6 class="fw-bold mt-4 mb-2" style="font-size: 0.975rem;">@(isBangla ? "বক্সে যা থাকছে:" : "What's in the Box:")</h6>
+                    <ul style="padding-left: 1.5rem;">
+                        <li>1x @Model.Title</li>
+                        <li>@(isBangla ? "ব্যবহারকারী ম্যানুয়াল" : "User Manual")</li>
+                        <li>@(isBangla ? "ওয়ারেন্টি কার্ড" : "Warranty Card")</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Specifications Tab -->
+            <div class="tab-pane fade" id="specifications">
+                <div class="card border-0">
+                    <div class="card-body">
+                        <h5 class="sparkle-section-title mb-3">@(isBangla ? "টেকনিক্যাল স্পেসিফিকেশন" : "Technical Specifications")</h5>
+                        <table class="table table-striped">
+                            <tbody>
+                                <tr>
+                                    <th width="30%">@(isBangla ? "ক্যাটাগরি" : "Category")</th>
+                                    <td>@Model.Category?.Name</td>
+                                </tr>
+                                <tr>
+                                    <th>@(isBangla ? "কন্ডিশন" : "Condition")</th>
+                                    <td>@(isBangla ? "নতুন" : "New")</td>
+                                </tr>
+                                <tr>
+                                    <th>@(isBangla ? "ওয়ারেন্টি" : "Warranty")</th>
+                                    <td>@(isBangla ? "১ বছরের ম্যানুফ্যাকচারার ওয়ারেন্টি" : "1 Year Manufacturer Warranty")</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reviews Tab -->
+            <div class="tab-pane fade" id="reviews">
+                <div class="card border-0">
+                    <div class="card-body">
+                        <h5 class="sparkle-section-title mb-4">@(isBangla ? "কাস্টমার রিভিউ" : "Customer Reviews")</h5>
+                        
+                        <!-- Rating Summary -->
+                        <div class="rating-summary row mb-4">
+                            <div class="col-md-4 text-center">
+                                <div class="display-4 fw-bold">4.5</div>
+                                <div class="text-warning mb-2">⭐⭐⭐⭐⭐</div>
+                                <p class="text-muted">@(isBangla ? "২৫৬টি রিভিউ" : "256 reviews")</p>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="rating-bar mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span>5 ⭐</span>
+                                        <div class="progress flex-grow-1">
+                                            <div class="progress-bar bg-success" style="width: 75%"></div>
+                                        </div>
+                                        <span>192</span>
+                                    </div>
+                                </div>
+                                <div class="rating-bar mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span>4 ⭐</span>
+                                        <div class="progress flex-grow-1">
+                                            <div class="progress-bar bg-primary" style="width: 15%"></div>
+                                        </div>
+                                        <span>38</span>
+                                    </div>
+                                </div>
+                                <!-- Add more rating bars -->
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Individual Reviews -->
+                        <div class="reviews-list">
+                            <div class="review-item mb-4">
+                                <div class="d-flex gap-3">
+                                    <div class="reviewer-avatar">
+                                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" 
+                                             style="width: 50px; height: 50px;">
+                                            <strong>JD</strong>
+                                        </div>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between">
+                                            <h6 class="fw-bold mb-1">John Doe</h6>
+                                            <small class="text-muted">2 days ago</small>
+                                        </div>
+                                        <div class="text-warning mb-2">⭐⭐⭐⭐⭐</div>
+                                        <p class="mb-2">Amazing product! Exactly as described. Fast delivery and great quality.</p>
+                                        <small class="text-success"><i class="bi bi-patch-check-fill"></i> Verified Purchase</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+@@section Scripts {
+<style>
+    .product-page {
+        min-height: 100vh;
+        padding-bottom: 40px;
+    }
+    
+    /* Amazon-style Tab Navigation */
+    .nav-tabs {
+        border-bottom: 1px solid #d5d9d9;
+    }
+    
+    .nav-tabs .nav-link {
+        background: transparent;
+        border: none;
+        border-bottom: 3px solid transparent;
+        color: #0f1111;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        border-bottom-color: #c7511f;
+        color: #c7511f;
+    }
+    
+    .nav-tabs .nav-link.active {
+        background: transparent;
+        border-bottom: 3px solid #c7511f;
+        color: #c7511f;
+        font-weight: 600;
+    }
+    
+    /* Thumbnail Styles */
+    .thumbnail-img {
+        transition: border-color 0.2s;
+    }
+    
+    .thumbnail-img:hover {
+        border-color: #007185 !important;
+        border-width: 2px !important;
+    }
+    
+    /* Main Image Zoom */
+    .main-image-container:hover #mainProductImage {
+        transform: scale(1.05);
+    }
+    
+    #mainProductImage {
+        transition: transform 0.3s ease;
+    }
+    
+    /* Breadcrumb Links */
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: "›";
+        color: #565959;
+    }
+    
+    /* Scrollbar for thumbnails */
+    .thumbnail-gallery::-webkit-scrollbar {
+        height: 6px;
+    }
+    
+    .thumbnail-gallery::-webkit-scrollbar-track {
+        background: #f0f0f0;
+    }
+    
+    .thumbnail-gallery::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 3px;
+    }
+</style>
+
+<script>
+    const defaultVariantId = @Model.Variants.First().Id;
+
+    function changeMainImage(imageUrl) {
+        document.getElementById('mainProductImage').src = imageUrl;
+    }
+    
+    function increaseQuantity() {
+        const input = document.getElementById('quantity');
+        const max = parseInt(input.max);
+        if (parseInt(input.value) < max) {
+            input.value = parseInt(input.value) + 1;
+        }
+    }
+    
+    function decreaseQuantity() {
+        const input = document.getElementById('quantity');
+        if (parseInt(input.value) > 1) {
+            input.value = parseInt(input.value) - 1;
+        }
+    }
+    
+    async function addToCart(productId) {
+        const quantity = parseInt(document.getElementById('quantity').value);
+
+        // If user is logged in, hit backend cart
+        if (window.isAuthenticated === 'true') {
+            try {
+                const body = new URLSearchParams();
+                body.append('productVariantId', defaultVariantId.toString());
+                body.append('quantity', quantity.toString());
+                body.append('returnUrl', window.location.pathname);
+
+                const response = await fetch('/cart/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body.toString()
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to add to cart');
+                }
+
+                if (typeof updateCartCount === 'function') {
+                    updateCartCount();
+                }
+
+                showToast('Added to cart!', 'success');
+                return true;
+            } catch (e) {
+                showToast('Could not add to cart. Please try again.', 'danger');
+                return false;
+            }
+        }
+
+        // Guest users: fallback to localStorage so they still see cart feedback
+        let cart = JSON.parse(localStorage.getItem('sparkle-cart') || '[]');
+        const existingItem = cart.find(item => item.productId === productId);
+        
+        if (existingItem) {
+            existingItem.quantity += quantity;
+        } else {
+            cart.push({
+                id: Date.now(),
+                productId: productId,
+                quantity: quantity,
+                name: '@Model.Title',
+                price: @discountedPrice,
+                image: '@firstImage'
+            });
+        }
+        
+        localStorage.setItem('sparkle-cart', JSON.stringify(cart));
+        
+        const count = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
+        document.getElementById('cartCount').textContent = count > 99 ? '99+' : count;
+        
+        showToast('Added to cart!', 'success');
+        return true;
+    }
+    
+    async function buyNow(productId) {
+        const ok = await addToCart(productId);
+        if (ok) {
+            window.location.href = '/cart';
+        }
+    }
+    
+    function addToWishlist(productId) {
+        showToast('Wishlist feature is coming soon.', 'info');
+    }
+    
+    function copyProductLink() {
+        navigator.clipboard.writeText(window.location.href);
+        showToast('Link copied to clipboard!', 'success');
+    }
+    
+    function showToast(message, type) {
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
+        toast.style.zIndex = '9999';
+        toast.innerHTML = `<strong>${message}</strong>`;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => toast.remove(), 3000);
+    }
+    
+    // Subscribe to real-time stock updates via SignalR
+    if (typeof inventoryConnection !== 'undefined') {
+        inventoryConnection.invoke("SubscribeToProduct", @Model.Id);
+    }
+</script>
+}

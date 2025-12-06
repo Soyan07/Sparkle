@@ -1,0 +1,65 @@
+@model Sparkle.Api.Controllers.ProfileController.SecurityViewModel
+@{
+    ViewData["Title"] = "Security Settings";
+    Layout = "_ProfileLayout";
+    var langCookie = Context.Request.Cookies["sparkle-lang"] == "bn" ? "bn" : "en";
+    var isBangla = langCookie == "bn";
+}
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+        <h4 class="mb-4">@(isBangla ? "নিরাপত্তা সেটিংস" : "Security Settings")</h4>
+
+        <div class="list-group list-group-flush">
+             <!-- Email Section -->
+            <div class="list-group-item px-0 py-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1">@(isBangla ? "ইমেইল ঠিকানা" : "Email Address")</h6>
+                    <p class="text-muted small mb-0">@Model.Email</p>
+                </div>
+                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">@(isBangla ? "যাচাইকৃত" : "Verified")</span>
+            </div>
+
+            <!-- Password Section -->
+            <div class="list-group-item px-0 py-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1">@(isBangla ? "পাসওয়ার্ড" : "Password")</h6>
+                    @if (Model.HasPassword)
+                    {
+                        <p class="text-muted small mb-0">@(isBangla ? "আপনার অ্যাকাউন্টের নিরাপত্তা নিশ্চিত করতে শক্তিশালী পাসওয়ার্ড ব্যবহার করুন" : "Use a strong password to keep your account secure")</p>
+                    }
+                    else
+                    {
+                        <p class="text-warning small mb-0">@(isBangla ? "আপনার কোন পাসওয়ার্ড সেট করা নেই (গুগল লগ ইন)" : "You don't have a password set (Google Login)")</p>
+                    }
+                </div>
+                <a href="/auth/change-password" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                    @(isBangla ? "পরিবর্তন করুন" : "Change Password")
+                </a>
+            </div>
+
+            <!-- Two-Factor Auth Section -->
+            <div class="list-group-item px-0 py-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1">@(isBangla ? "টু-ফ্যাক্টর অথেনটিকেশন (2FA)" : "Two-Factor Authentication")</h6>
+                    <p class="text-muted small mb-0">@(isBangla ? "লগ ইনের সময় একটি অতিরিক্ত নিরাপত্তা স্তর যোগ করুন" : "Add an extra layer of security to your account during login")</p>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="2faSwitch" @(Model.TwoFactorEnabled ? "checked" : "") disabled>
+                    <label class="form-check-label small text-muted" for="2faSwitch">@(isBangla ? "শীঘ্রই আসছে" : "Coming Soon")</label>
+                </div>
+            </div>
+            
+            <!-- Delete Account -->
+             <div class="list-group-item px-0 py-3 d-flex justify-content-between align-items-center border-bottom-0">
+                <div>
+                    <h6 class="mb-1 text-danger">@(isBangla ? "অ্যাকাউন্ট মুছুন" : "Delete Account")</h6>
+                    <p class="text-muted small mb-0">@(isBangla ? "একবার মুছলে, এটি আর পুনরুদ্ধার করা যাবে না" : "Once you delete your account, there is no going back")</p>
+                </div>
+                <button class="btn btn-sm btn-outline-danger rounded-pill px-3 disabled">
+                    @(isBangla ? "অ্যাকাউন্ট ডিলিট" : "Delete")
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

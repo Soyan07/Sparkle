@@ -1,0 +1,117 @@
+@model List<Sparkle.Domain.Sellers.Seller>
+@{
+    ViewData["Title"] = "Manage Sellers";
+    Layout = "~/Areas/Admin/Views/Shared/_AdminLayout.cshtml";
+}
+
+<div class="container-fluid">
+    <div class="mb-4">
+        <h2>Manage Sellers</h2>
+        <p class="text-muted">View and manage all seller accounts</p>
+    </div>
+
+    @if (Model.Count == 0)
+    {
+        <div class="alert alert-info">
+            No sellers found in the system.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Shop Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>City</th>
+                        <th>Products</th>
+                        <th>Sales</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var seller in Model)
+                    {
+                        <tr id="seller-@seller.Id">
+                            <td>@seller.Id</td>
+                            <td>@seller.ShopName</td>
+                            <td>@seller.Email</td>
+                            <td>@seller.MobileNumber</td>
+                            <td>@seller.City</td>
+                            <td>@seller.TotalProducts</td>
+                            <td>@seller.TotalSales</td>
+                            <td>
+                                <span class="badge bg-@(seller.Status == Sparkle.Domain.Sellers.SellerStatus.Active ? "success" : seller.Status == Sparkle.Domain.Sellers.SellerStatus.Pending ? "warning" : "danger")">
+                                    @seller.Status
+                                </span>
+                            </td>
+                            <td>
+                                @if (seller.Status == Sparkle.Domain.Sellers.SellerStatus.Pending)
+                                {
+                                    <button class="btn btn-sm btn-success" onclick="approveSeller(@seller.Id)">Approve</button>
+                                }
+                                else if (seller.Status == Sparkle.Domain.Sellers.SellerStatus.Active)
+                                {
+                                    <button class="btn btn-sm btn-warning" onclick="suspendSeller(@seller.Id)">Suspend</button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-success" onclick="approveSeller(@seller.Id)">Reactivate</button>
+                                }
+                                <a href="/Admin/Sellers/Details/@seller.Id" class="btn btn-sm btn-primary">Details</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<script>
+    function approveSeller(sellerId) {
+        if (confirm('Are you sure you want to approve this seller?')) {
+            fetch('/Admin/Sellers/Approve', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ sellerId: sellerId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Seller approved successfully!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            });
+        }
+    }
+
+    function suspendSeller(sellerId) {
+        if (confirm('Are you sure you want to suspend this seller?')) {
+            fetch('/Admin/Sellers/Suspend', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ sellerId: sellerId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Seller suspended successfully!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            });
+        }
+    }
+</script>

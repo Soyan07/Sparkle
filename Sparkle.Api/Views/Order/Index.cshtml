@@ -1,0 +1,133 @@
+@model Sparkle.Api.Controllers.OrderController.PagedUserOrdersViewModel
+@{
+    var langCookie = Context.Request.Cookies["sparkle-lang"] == "bn" ? "bn" : "en";
+    var isBangla = langCookie == "bn";
+    ViewData["Title"] = isBangla ? "আমার অর্ডার" : "My Orders";
+}
+
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">
+                <i class="bi bi-bag-check-fill text-primary"></i>
+                @(isBangla ? "আমার অর্ডার" : "My Orders")
+            </h2>
+            <p class="text-muted mb-0">@(isBangla ? "আপনার সকল অর্ডারের তালিকা" : "View all your orders")</p>
+        </div>
+        <a href="/" class="btn btn-outline-primary">
+            <i class="bi bi-house"></i> @(isBangla ? "হোমপেজে যান" : "Back to Home")
+        </a>
+    </div>
+
+    @if (!Model.Items.Any())
+    {
+        <div class="text-center py-5 bg-white rounded-3 shadow-sm">
+            <i class="bi bi-cart-x" style="font-size: 4rem; color: #cbd5e0;"></i>
+            <h4 class="mt-3 mb-2">@(isBangla ? "কোন অর্ডার নেই" : "No Orders Yet")</h4>
+            <p class="text-muted mb-4">@(isBangla ? "আপনি এখনো কোন অর্ডার করেননি।" : "You haven't placed any orders yet.")</p>
+            <a href="/" class="btn btn-primary btn-lg px-4">
+                <i class="bi bi-shop"></i> @(isBangla ? "শপিং শুরু করুন" : "Start Shopping")
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var order in Model.Items)
+            {
+                var statusClass = order.Status switch
+                {
+                    Sparkle.Domain.Orders.OrderStatus.Pending => "warning",
+                    Sparkle.Domain.Orders.OrderStatus.Processing => "info",
+                    Sparkle.Domain.Orders.OrderStatus.Shipped => "primary",
+                    Sparkle.Domain.Orders.OrderStatus.Delivered => "success",
+                    Sparkle.Domain.Orders.OrderStatus.Cancelled => "danger",
+                    _ => "secondary"
+                };
+
+                var statusText = order.Status switch
+                {
+                    Sparkle.Domain.Orders.OrderStatus.Pending => isBangla ? "পেন্ডিং" : "Pending",
+                    Sparkle.Domain.Orders.OrderStatus.Processing => isBangla ? "প্রসেসিং" : "Processing",
+                    Sparkle.Domain.Orders.OrderStatus.Shipped => isBangla ? "শিপড" : "Shipped",
+                    Sparkle.Domain.Orders.OrderStatus.Delivered => isBangla ? "ডেলিভার হয়েছে" : "Delivered",
+                    Sparkle.Domain.Orders.OrderStatus.Cancelled => isBangla ? "বাতিল" : "Cancelled",
+                    _ => "Unknown"
+                };
+
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-2">
+                                    <h6 class="mb-1 text-muted small">@(isBangla ? "অর্ডার নং" : "Order")</h6>
+                                    <strong class="text-primary">#@order.Id</strong>
+                                </div>
+                                <div class="col-md-2">
+                                    <h6 class="mb-1 text-muted small">@(isBangla ? "তারিখ" : "Date")</h6>
+                                    <span>@order.CreatedAt.ToString("dd MMM yyyy")</span>
+                                </div>
+                                <div class="col-md-2">
+                                    <h6 class="mb-1 text-muted small">@(isBangla ? "মোট" : "Total")</h6>
+                                    <strong class="text-success">৳ @order.TotalAmount.ToString("N0")</strong>
+                                </div>
+                                <div class="col-md-2">
+                                    <h6 class="mb-1 text-muted small">@(isBangla ? "পেমেন্ট" : "Payment")</h6>
+                                    <span class="badge bg-@(order.PaymentStatus == Sparkle.Domain.Orders.PaymentStatus.Paid ? "success" : "warning")">
+                                        @(order.PaymentStatus == Sparkle.Domain.Orders.PaymentStatus.Paid 
+                                            ? (isBangla ? "পেইড" : "Paid") 
+                                            : (isBangla ? "পেন্ডিং" : "Pending"))
+                                    </span>
+                                </div>
+                                <div class="col-md-2">
+                                    <h6 class="mb-1 text-muted small">@(isBangla ? "স্ট্যাটাস" : "Status")</h6>
+                                    <span class="badge bg-@statusClass">@statusText</span>
+                                </div>
+                                <div class="col-md-2 text-end">
+                                    <a href="/orders/@order.Id" class="btn btn-sm btn-outline-primary mb-1 w-100">
+                                        <i class="bi bi-eye"></i> @(isBangla ? "বিস্তারিত" : "Details")
+                                    </a>
+                                    <a href="/orders/track/@order.Id" class="btn btn-sm btn-outline-secondary w-100">
+                                        <i class="bi bi-truck"></i> @(isBangla ? "ট্র্যাক" : "Track")
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (Model.TotalPages > 1)
+        {
+            <nav class="mt-4">
+                <ul class="pagination justify-content-center">
+                    @if (Model.Page > 1)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" href="/orders?page=@(Model.Page - 1)">
+                                <i class="bi bi-chevron-left"></i> @(isBangla ? "পূর্ববর্তী" : "Previous")
+                            </a>
+                        </li>
+                    }
+
+                    @for (int i = Math.Max(1, Model.Page - 2); i <= Math.Min(Model.TotalPages, Model.Page + 2); i++)
+                    {
+                        <li class="page-item @(i == Model.Page ? "active" : "")">
+                            <a class="page-link" href="/orders?page=@i">@i</a>
+                        </li>
+                    }
+
+                    @if (Model.Page < Model.TotalPages)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" href="/orders?page=@(Model.Page + 1)">
+                                @(isBangla ? "পরবর্তী" : "Next") <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        }
+    }
+</div>

@@ -1,0 +1,445 @@
+@model Sparkle.Api.Controllers.AuthController.RegisterUserViewModel
+@{
+    ViewData["Title"] = "Create Account";
+    Layout = null;
+    var langCookie = Context.Request.Cookies["sparkle-lang"] == "bn" ? "bn" : "en";
+    var isBangla = langCookie == "bn";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(isBangla ? "অ্যাকাউন্ট তৈরি করুন - স্পার্কল" : "Create Account - Sparkle")</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --primary-dark: #5a67d8;
+            --primary-light: #764ba2;
+            --text-dark: #1e293b;
+            --text-light: #64748b;
+            --bg-color: #f8fafc;
+            --input-bg: #ffffff;
+            --border-color: #e2e8f0;
+        }
+
+        * { font-family: 'Inter', system-ui, -apple-system, sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            background-color: var(--bg-color);
+            background-image: url('/images/auth-bg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 2rem; 
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(102, 126, 234, 0.4);
+            backdrop-filter: blur(8px);
+            z-index: 0;
+        }
+
+        .auth-wrapper { 
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 1100px;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @@keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .register-container { 
+            width: 100%; 
+            background: #ffffff;
+            border-radius: 20px; 
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            overflow: hidden; 
+            display: grid; 
+            grid-template-columns: 400px 1fr;
+            min-height: 700px;
+            max-width: 1000px; /* Reduced by ~10% */
+            margin: 0 auto; /* Ensure centering */
+        }
+
+        /* Left Side */
+        .register-left { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            padding: 3rem; 
+            color: white; 
+            display: flex; 
+            flex-direction: column; 
+            position: relative;
+            justify-content: space-between;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            margin-bottom: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            width: fit-content;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .brand-logo img {
+            height: 42px; /* Increased size */
+            width: auto;
+        }
+
+        .left-center-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            margin-top: -2rem;
+        }
+
+        .user-icon-circle {
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .user-icon-circle img {
+            width: 65px;
+            height: 65px;
+            object-fit: contain;
+        }
+
+        .register-left h1 { 
+            font-size: 2.5rem; 
+            font-weight: 700; 
+            line-height: 1.2;
+            margin-bottom: 0.5rem; 
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .register-left p.subtitle { 
+            font-size: 1rem; 
+            opacity: 0.9; 
+            margin-bottom: 0;
+            font-weight: 400;
+        }
+
+        .features-box {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            margin-top: 2rem;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .feature-item:last-child { margin-bottom: 0; }
+        .feature-item i { font-size: 1.1rem; color: white; }
+
+        /* Right Side */
+        .register-right { 
+            padding: 2.5rem 4rem; 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: #fff;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .form-header {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-header h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 0.35rem;
+        }
+
+        .form-header p {
+            color: var(--text-light);
+            font-size: 0.95rem;
+            margin-bottom: 0;
+        }
+
+        .form-group { margin-bottom: 1rem; }
+        
+        .form-label { 
+            font-size: 0.9rem; 
+            font-weight: 600; 
+            color: var(--text-dark); 
+            margin-bottom: 0.25rem; 
+            display: block; 
+        }
+
+        .form-control { 
+            height: 42px;
+            border: 1px solid #cbd5e1; 
+            border-radius: 8px; 
+            padding: 0 1rem; 
+            font-size: 0.95rem; 
+            width: 100%; 
+            transition: all 0.2s; 
+            background: var(--input-bg);
+            color: var(--text-dark);
+        }
+
+        .form-control:focus { 
+            border-color: var(--primary-color); 
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); 
+            outline: none; 
+        }
+
+        .form-control::placeholder { color: #94a3b8; }
+
+        .password-wrapper { position: relative; }
+        
+        .password-toggle { 
+            position: absolute; 
+            right: 1rem; 
+            top: 50%; 
+            transform: translateY(-50%); 
+            cursor: pointer; 
+            color: #94a3b8;
+        }
+        
+        .password-toggle:hover { color: var(--text-dark); }
+
+        .helper-text {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-top: 0.25rem;
+            display: block;
+        }
+
+        .btn-primary { 
+            background: #5865F2; /* Matching the blue-ish purple from photo */
+            border: none; 
+            border-radius: 8px; 
+            height: 42px;
+            font-size: 1rem; 
+            font-weight: 600; 
+            color: white; 
+            width: 100%; 
+            cursor: pointer; 
+            transition: all 0.3s; 
+            margin-top: 1rem;
+        }
+
+        .btn-primary:hover { 
+            background: #4752c4; 
+            transform: translateY(-1px); 
+        }
+
+        .bottom-links {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+
+        .bottom-links a {
+            color: #5865F2;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .bottom-links a:hover { text-decoration: underline; }
+
+        .nav-back { 
+            position: absolute; 
+            top: 2rem; 
+            left: 2rem; 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 0.5rem; 
+            color: white; 
+            text-decoration: none; 
+            font-size: 0.95rem; 
+            font-weight: 600; 
+            transition: all 0.2s; 
+            padding: 0.5rem 1rem; 
+            border-radius: 50px; 
+            background: rgba(255,255,255,0.15); 
+            backdrop-filter: blur(10px); 
+            z-index: 10; 
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .nav-back:hover { 
+            background: white; 
+            color: var(--text-dark); 
+        }
+
+        /* Responsive */
+        @@media (max-width: 900px) {
+            .register-container { grid-template-columns: 1fr; max-width: 500px; min-height: auto; }
+            .register-left { display: none; }
+            .register-right { padding: 2rem; }
+            .nav-back { color: var(--text-dark); background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        }
+    </style>
+</head>
+<body>
+    <a href="/auth/login" class="nav-back"><i class="bi bi-arrow-left"></i> @(isBangla ? "লগইনে ফিরুন" : "Back")</a>
+    
+    <div class="auth-wrapper">
+        <div class="register-container">
+            <!-- Left Side -->
+            <div class="register-left">
+                <div class="brand-logo">
+                    <img src="/images/logo.png" alt="Sparkle" />
+                </div>
+
+                <div class="left-center-content">
+                    <div class="user-icon-circle">
+                        <img src="/images/user-icon.png" alt="User" />
+                    </div>
+                    <h1>@Html.Raw(isBangla ? "ইউজার রেজিস্ট্রেশন" : "USER<br/>REGISTRATION")</h1>
+                    <p class="subtitle">@(isBangla ? "নতুন ইউজার অ্যাকাউন্ট তৈরি করুন" : "Create a New User Account")</p>
+                </div>
+                
+                <div class="features-box">
+                    <div class="feature-item"><i class="bi bi-check-circle-fill"></i> <span>@(isBangla ? "দ্রুত চেকআউট" : "Fast checkout")</span></div>
+                    <div class="feature-item"><i class="bi bi-check-circle-fill"></i> <span>@(isBangla ? "অর্ডার ট্র্যাকিং" : "Order tracking")</span></div>
+                    <div class="feature-item"><i class="bi bi-check-circle-fill"></i> <span>@(isBangla ? "এক্সক্লুসিভ ডিল" : "Exclusive deals")</span></div>
+                    <div class="feature-item"><i class="bi bi-check-circle-fill"></i> <span>@(isBangla ? "সহজ রিটার্ন" : "Easy returns")</span></div>
+                </div>
+            </div>
+
+            <!-- Right Side -->
+            <div class="register-right">
+                <div class="form-header">
+                    <h2>@(isBangla ? "শুরু করুন" : "Get Started")</h2>
+                    <p>@(isBangla ? "নিচে আপনার বিস্তারিত তথ্য পূরণ করুন" : "Fill in your details below")</p>
+                </div>
+
+
+
+                <form method="post" asp-action="RegisterUser" asp-controller="Auth" id="registerForm">
+                    <div class="form-group">
+                        <label asp-for="FullName" class="form-label">Full Name</label>
+                        <input asp-for="FullName" type="text" class="form-control" placeholder="Enter your full name" autofocus />
+                        <span asp-validation-for="FullName" class="text-danger small"></span>
+                    </div>
+                    <div class="form-group">
+                        <label asp-for="Email" class="form-label">Email Address</label>
+                        <input asp-for="Email" type="email" class="form-control" placeholder="name@example.com" />
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="ContactPhone" class="form-label">Mobile Number</label>
+                                <input asp-for="ContactPhone" type="tel" class="form-control" placeholder="+880 1XXXXXXXXX" />
+                                <span asp-validation-for="ContactPhone" class="text-danger small"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="DateOfBirth" class="form-label">Date of Birth</label>
+                                <input asp-for="DateOfBirth" type="date" class="form-control" id="dobInput" />
+                                <small class="helper-text">Must be 13+ years old</small>
+                                <span asp-validation-for="DateOfBirth" class="text-danger small"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label asp-for="Password" class="form-label">Password</label>
+                        <div class="password-wrapper">
+                            <input asp-for="Password" type="password" class="form-control" id="password" placeholder="Create a strong password" />
+                            <i class="bi bi-eye password-toggle" id="togglePassword"></i>
+                        </div>
+                        <small class="helper-text">Use at least 6 characters</small>
+                        <span asp-validation-for="Password" class="text-danger small"></span>
+                    </div>
+                    <div class="form-group">
+                        <label asp-for="ConfirmPassword" class="form-label">Confirm Password</label>
+                        <div class="password-wrapper">
+                            <input asp-for="ConfirmPassword" type="password" class="form-control" id="confirmPassword" placeholder="Re-enter your password" />
+                            <i class="bi bi-eye password-toggle" id="toggleConfirmPassword"></i>
+                        </div>
+                        <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+                    </div>
+
+                    <button type="submit" class="btn-primary">@(isBangla ? "অ্যাকাউন্ট তৈরি করুন" : "Create Account")</button>
+
+                    <div class="bottom-links">
+                        @(isBangla ? "আগেই অ্যাকাউন্ট আছে?" : "Already have an account?") <a href="/auth/login">@(isBangla ? "লগইন করুন" : "Login")</a><br>
+                        @(isBangla ? "ব্যবসা শুরু করতে চান?" : "Want to start selling?") <a href="/auth/register-seller">@(isBangla ? "সেলার হোন" : "Become a Seller")</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
+    <script>
+        function setupPasswordToggle(toggleId, passwordId) {
+            const toggle = document.querySelector(toggleId);
+            const password = document.querySelector(passwordId);
+            if (toggle && password) {
+                toggle.addEventListener('click', function () {
+                    const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+                    password.setAttribute('type', type);
+                    this.classList.toggle('bi-eye');
+                    this.classList.toggle('bi-eye-slash');
+                });
+            }
+        }
+
+        setupPasswordToggle('#togglePassword', '#password');
+        setupPasswordToggle('#toggleConfirmPassword', '#confirmPassword');
+
+        (function () {
+            const dobInput = document.getElementById('dobInput');
+            if (!dobInput) return;
+            const today = new Date();
+            const maxDate = new Date(today.getFullYear() - 13, today.getMonth(), today.getDate());
+            const minDate = new Date(today.getFullYear() - 100, today.getMonth(), today.getDate());
+            function toIso(d) { return d.toISOString().split('T')[0]; }
+            dobInput.max = toIso(maxDate);
+            dobInput.min = toIso(minDate);
+        })();
+    </script>
+</body>
+</html>

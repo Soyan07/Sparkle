@@ -1,0 +1,194 @@
+@model Sparkle.Domain.Users.UserAddress
+@{
+    ViewData["Title"] = "Add New Address";
+    Layout = "_ProfileLayout";
+}
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+        <h4 class="mb-4">Add New Address</h4>
+
+        <form method="post" asp-action="CreateAddress">
+            <input type="hidden" asp-for="Latitude" id="Latitude" />
+            <input type="hidden" asp-for="Longitude" id="Longitude" />
+            
+            <div class="row g-3">
+                <div class="col-12">
+                    <label asp-for="Country" class="form-label">Country/Region</label>
+                    <select asp-for="Country" class="form-select">
+                        <option value="Bangladesh">Bangladesh</option>
+                    </select>
+                </div>
+
+                <div class="col-md-12">
+                    <label asp-for="FullName" class="form-label">Full Name</label>
+                    <input asp-for="FullName" class="form-control" />
+                    <span asp-validation-for="FullName" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-12">
+                    <label asp-for="PhoneNumber" class="form-label">Phone Number</label>
+                    <input asp-for="PhoneNumber" class="form-control" />
+                    <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                </div>
+
+                <!-- Area Search and Autocomplete -->
+                <div class="col-12">
+                    <label asp-for="Area" class="form-label">Area / Neighborhood</label>
+                    <div class="position-relative">
+                        <input asp-for="Area" class="form-control" id="areaSearch" placeholder="Search Area (e.g. Mirpur 10)" autocomplete="off" />
+                        <div id="areaSuggestions" class="list-group position-absolute w-100 shadow" style="z-index: 1000; display:none; max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                    <span asp-validation-for="Area" class="text-danger"></span>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="AddressLine1" class="form-label">Street Address</label>
+                    <input asp-for="AddressLine1" class="form-control" placeholder="Street address, P.O. box, company name, c/o" />
+                    <span asp-validation-for="AddressLine1" class="text-danger"></span>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="AddressLine2" class="form-label">Apartment, suite, unit, etc. (optional)</label>
+                    <input asp-for="AddressLine2" class="form-control" />
+                </div>
+
+                <!-- Map Section -->
+                <div class="col-12">
+                    <label class="form-label">Pin Location on Map</label>
+                    <div id="map" style="height: 300px; border-radius: 6px; border: 1px solid #dee2e6;"></div>
+                    <small class="text-muted mt-1">
+                        <i class="bi bi-geo-alt-fill text-danger"></i> Drag the marker to your exact location
+                    </small>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="City" class="form-label">City</label>
+                    <input asp-for="City" class="form-control" />
+                    <span asp-validation-for="City" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Division" class="form-label">Division</label>
+                    <select asp-for="Division" class="form-select">
+                        <option value="">Select Division</option>
+                        <option value="Dhaka">Dhaka</option>
+                        <option value="Chattogram">Chattogram</option>
+                        <option value="Khulna">Khulna</option>
+                        <option value="Rajshahi">Rajshahi</option>
+                        <option value="Barishal">Barishal</option>
+                        <option value="Sylhet">Sylhet</option>
+                        <option value="Rangpur">Rangpur</option>
+                        <option value="Mymensingh">Mymensingh</option>
+                    </select>
+                    <span asp-validation-for="Division" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="PostalCode" class="form-label">Zip Code</label>
+                    <input asp-for="PostalCode" class="form-control" />
+                    <span asp-validation-for="PostalCode" class="text-danger"></span>
+                </div>
+
+                <div class="col-12">
+                    <div class="form-check">
+                        <input asp-for="IsDefault" class="form-check-input" type="checkbox" />
+                        <label asp-for="IsDefault" class="form-check-label">
+                            Make this my default address
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-12 mt-4">
+                    <button type="submit" class="btn btn-primary">Add Address</button>
+                    <a href="/profile/addresses" class="btn btn-link text-decoration-none">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Map (Dhaka Center)
+        const defaultLat = 23.8103;
+        const defaultLng = 90.4125;
+        
+        const map = L.map('map').setView([defaultLat, defaultLng], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        let marker = L.marker([defaultLat, defaultLng], {draggable: true}).addTo(map);
+
+        function updateLocation(lat, lng) {
+            document.getElementById('Latitude').value = lat;
+            document.getElementById('Longitude').value = lng;
+        }
+        
+        // Initialize with default values
+        updateLocation(defaultLat, defaultLng);
+
+        marker.on('dragend', function(e) {
+            const pos = e.target.getLatLng();
+            updateLocation(pos.lat, pos.lng);
+        });
+
+        map.on('click', function(e) {
+            marker.setLatLng(e.latlng);
+            updateLocation(e.latlng.lat, e.latlng.lng);
+        });
+
+        // Area Autocomplete
+        const areaSearch = document.getElementById('areaSearch');
+        const suggestions = document.getElementById('areaSuggestions');
+        
+        if (areaSearch) {
+            areaSearch.addEventListener('input', async function() {
+                const query = this.value;
+                if (query.length < 2) {
+                    suggestions.style.display = 'none';
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/api/Location/areas?query=${query}`);
+                    const areas = await res.json();
+                    
+                    suggestions.innerHTML = '';
+                    if (areas.length > 0) {
+                        suggestions.style.display = 'block';
+                        areas.forEach(area => {
+                            const item = document.createElement('a');
+                            item.className = 'list-group-item list-group-item-action';
+                            item.href = '#';
+                            item.innerHTML = `<strong>${area.name}</strong> <small class="text-muted">${area.district}</small>`;
+                            item.onclick = (e) => {
+                                e.preventDefault();
+                                areaSearch.value = area.name;
+                                suggestions.style.display = 'none';
+                                
+                                // Optional: You could also update city/division based on the area if your API returned that info
+                            };
+                            suggestions.appendChild(item);
+                        });
+                    } else {
+                        suggestions.style.display = 'none';
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            });
+
+            // Close suggestions on click outside
+            document.addEventListener('click', function(e) {
+                if (e.target !== areaSearch) {
+                    suggestions.style.display = 'none';
+                }
+            });
+        }
+    });
+</script>

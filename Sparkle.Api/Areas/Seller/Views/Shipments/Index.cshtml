@@ -1,0 +1,232 @@
+@model List<Sparkle.Domain.Orders.Shipment>
+@{
+    ViewData["Title"] = "My Shipments";
+    Layout = "~/Areas/Seller/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-box-seam me-2"></i>My Shipments</h2>
+            <p class="text-muted mb-0">Manage and track your shipments</p>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link @(string.IsNullOrEmpty(ViewBag.StatusFilter) ? "active" : "")" 
+               href="@Url.Action("Index")">
+                All Shipments
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(ViewBag.StatusFilter == "Pending" ? "active" : "")" 
+               href="@Url.Action("Index", new { status = "Pending" })">
+                <span class="badge bg-secondary me-1">Pending</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(ViewBag.StatusFilter == "Packed" ? "active" : "")" 
+               href="@Url.Action("Index", new { status = "Packed" })">
+                <span class="badge bg-info me-1">Packed</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(ViewBag.StatusFilter == "InTransit" ? "active" : "")" 
+               href="@Url.Action("Index", new { status = "InTransit" })">
+                <span class="badge bg-primary me-1">In Transit</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(ViewBag.StatusFilter == "Delivered" ? "active" : "")" 
+               href="@Url.Action("Index", new { status = "Delivered" })">
+                <span class="badge bg-success me-1">Delivered</span>
+            </a>
+        </li>
+    </ul>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!Model.Any())
+    {
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-box-seam" style="font-size: 4rem; color: #ccc;"></i>
+                <h4 class="mt-3">No Shipments Found</h4>
+                <p class="text-muted">
+                    @if (string.IsNullOrEmpty(ViewBag.StatusFilter))
+                    {
+                        <text>You haven't created any shipments yet.</text>
+                    }
+                    else
+                    {
+                        <text>No shipments with status "@ViewBag.StatusFilter".</text>
+                    }
+                </p>
+                @if (string.IsNullOrEmpty(ViewBag.StatusFilter))
+                {
+                    <a href="@Url.Action("Index", "Orders")" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i>View Orders
+                    </a>
+                }
+                else
+                {
+                    <a href="@Url.Action("Index")" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left me-1"></i>View All Shipments
+                    </a>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Shipment #</th>
+                                <th>Order #</th>
+                                <th>Items</th>
+                                <th>Courier</th>
+                                <th>Tracking #</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var shipment in Model)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>@shipment.ShipmentNumber</strong>
+                                    </td>
+                                    <td>
+                                        <a href="@Url.Action("Details", "Orders", new { id = shipment.OrderId })">
+                                            @shipment.Order.OrderNumber
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">
+                                            @shipment.Items.Count item(s)
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <strong>@shipment.CourierName</strong>
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(shipment.TrackingNumber))
+                                        {
+                                            <code>@shipment.TrackingNumber</code>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @switch (shipment.Status)
+                                        {
+                                            case Sparkle.Domain.Orders.ShipmentStatus.Pending:
+                                                <span class="badge bg-secondary">Pending</span>
+                                                break;
+                                            case Sparkle.Domain.Orders.ShipmentStatus.Packed:
+                                                <span class="badge bg-info">Packed</span>
+                                                break;
+                                            case Sparkle.Domain.Orders.ShipmentStatus.PickedUp:
+                                                <span class="badge bg-warning">Picked Up</span>
+                                                break;
+                                            case Sparkle.Domain.Orders.ShipmentStatus.InTransit:
+                                                <span class="badge bg-primary">In Transit</span>
+                                                break;
+                                            case Sparkle.Domain.Orders.ShipmentStatus.OutForDelivery:
+                                                <span class="badge bg-primary">Out for Delivery</span>
+                                                break;
+                                            case Sparkle.Domain.Orders.ShipmentStatus.Delivered:
+                                                <span class="badge bg-success">Delivered</span>
+                                                break;
+                                            case Sparkle.Domain.Orders.ShipmentStatus.Failed:
+                                                <span class="badge bg-danger">Failed</span>
+                                                break;
+                                            case Sparkle.Domain.Orders.ShipmentStatus.Returned:
+                                                <span class="badge bg-dark">Returned</span>
+                                                break;
+                                            case Sparkle.Domain.Orders.ShipmentStatus.Cancelled:
+                                                <span class="badge bg-danger">Cancelled</span>
+                                                break;
+                                        }
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            @shipment.CreatedAt.ToString("MMM dd, yyyy")
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="@Url.Action("Details", new { id = shipment.Id })" 
+                                               class="btn btn-outline-primary" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            @if (shipment.Status != Sparkle.Domain.Orders.ShipmentStatus.Delivered && 
+                                                 shipment.Status != Sparkle.Domain.Orders.ShipmentStatus.Cancelled)
+                                            {
+                                                <a href="@Url.Action("UpdateStatus", new { id = shipment.Id })" 
+                                                   class="btn btn-outline-success" title="Update Status">
+                                                    <i class="bi bi-arrow-repeat"></i>
+                                                </a>
+                                            }
+                                            <a href="@Url.Action("PrintLabel", new { id = shipment.Id })" 
+                                               class="btn btn-outline-secondary" title="Print Label" target="_blank">
+                                                <i class="bi bi-printer"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            @if (ViewBag.TotalPages > 1)
+            {
+                <div class="card-footer">
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                            {
+                                <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                                    <a class="page-link" href="@Url.Action("Index", new { page = i, status = ViewBag.StatusFilter })">
+                                        @i
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .nav-tabs .nav-link {
+        color: #666;
+    }
+    .nav-tabs .nav-link.active {
+        font-weight: 600;
+    }
+    .table td {
+        vertical-align: middle;
+    }
+</style>

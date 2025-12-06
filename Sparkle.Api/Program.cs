@@ -1,0 +1,484 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Sparkle.Domain.Catalog;
+using Sparkle.Domain.Orders;
+using Sparkle.Domain.Sellers;
+using Sparkle.Infrastructure;
+using Sparkle.Domain.Identity;
+using Sparkle.Infrastructure.Services;
+using Sparkle.Api.Services;
+using StackExchange.Redis;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Database & Identity
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
+
+builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
+    {
+        options.Password.RequireDigit = false;
+        options.Password.RequireLowercase = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequiredLength = 4;
+        
+        // Lockout settings
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.AllowedForNewUsers = true;
+        
+        // User settings
+        options.User.RequireUniqueEmail = true;
+        options.SignIn.RequireConfirmedEmail = false;
+        options.SignIn.RequireConfirmedAccount = false;
+    })
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
+
+// Google OAuth for Users Only
+var googleClientId = builder.Configuration["Google:ClientId"];
+var googleClientSecret = builder.Configuration["Google:ClientSecret"];
+var isGoogleConfigured = !string.IsNullOrWhiteSpace(googleClientId) && 
+                         !string.IsNullOrWhiteSpace(googleClientSecret) &&
+                         googleClientId != "YOUR_GOOGLE_CLIENT_ID_HERE" &&
+                         googleClientSecret != "YOUR_GOOGLE_CLIENT_SECRET_HERE";
+
+if (isGoogleConfigured)
+{
+    builder.Services.AddAuthentication()
+        .AddGoogle(options =>
+        {
+            options.ClientId = googleClientId!;
+            options.ClientSecret = googleClientSecret!;
+            options.SaveTokens = true;
+        });
+    Console.WriteLine($"[OK] Google OAuth authentication is enabled. ClientId: {googleClientId?[..5]}... (Redacted)");
+    Console.WriteLine("[INFO] Verifying SQL Server connection...");
+}
+else
+{
+    Console.WriteLine("[INFO] Google OAuth is NOT configured. Google login will be disabled.");
+    Console.WriteLine("[INFO] To enable Google login, see GOOGLE_OAUTH_SETUP_GUIDE.md in the project root.");
+}
+
+// Store configuration status for use in views
+builder.Services.AddSingleton<Sparkle.Api.Services.IGoogleAuthConfigurationService>(sp => 
+    new Sparkle.Api.Services.GoogleAuthConfigurationService(isGoogleConfigured));
+
+
+// Configure cookie authentication
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/auth/login";
+    options.LogoutPath = "/auth/logout";
+    options.AccessDeniedPath = "/auth/access-denied";
+    options.ExpireTimeSpan = TimeSpan.FromDays(30);
+    options.SlidingExpiration = true;
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+});
+
+// JWT Authentication for APIs (cookies remain default for MVC)
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException("JWT Key is missing");
+var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
+
+builder.Services.AddAuthentication()
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSection["Issuer"],
+            ValidAudience = jwtSection["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(keyBytes)
+        };
+    });
+
+// Application Services
+builder.Services.AddScoped<Sparkle.Infrastructure.Services.ICommissionService, Sparkle.Infrastructure.Services.CommissionService>();
+builder.Services.AddScoped<Sparkle.Domain.Marketing.ILoyaltyService, Sparkle.Infrastructure.Services.LoyaltyService>();
+builder.Services.AddScoped<Sparkle.Domain.Configuration.ISettingsService, Sparkle.Api.Services.SettingsService>();
+builder.Services.AddTransient<Sparkle.Infrastructure.Services.LocationSeedingService>();
+
+// SignalR with Redis Backplane (optional - falls back to in-memory if Redis unavailable)
+// SignalR with Redis Backplane (optional - falls back to in-memory if Redis unavailable)
+try
+{
+    var redisConnection = ConnectionMultiplexer.Connect("localhost:6379,connectTimeout=1000");
+    builder.Services.AddSingleton<IConnectionMultiplexer>(redisConnection);
+    
+    builder.Services.AddSignalR()
+        .AddStackExchangeRedis("localhost:6379", options =>
+        {
+            options.Configuration.ChannelPrefix = RedisChannel.Literal("SparkleHub");
+        });
+    
+    // Redis Distributed Cache
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = "localhost:6379";
+        options.InstanceName = "Sparkle_";
+    });
+    
+    Console.WriteLine("[OK] Redis connected for SignalR and caching");
+}
+catch
+{
+    // Redis is optional for development/single-server
+    Console.WriteLine("[INFO] Redis not found. Using in-memory SignalR and Caching (standard for local development).");
+    builder.Services.AddSignalR(); // Falls back to in-memory
+    builder.Services.AddDistributedMemoryCache(); // In-memory cache fallback
+}
+
+// Session Support for Checkout
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
+
+// Response Compression for better performance
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+});
+
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProviderOptions>(options =>
+{
+    options.Level = System.IO.Compression.CompressionLevel.Fastest;
+});
+
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(options =>
+{
+    options.Level = System.IO.Compression.CompressionLevel.Fastest;
+});
+
+// Response Caching
+builder.Services.AddResponseCaching();
+
+// Add services to the container.
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+    });
+
+builder.Services.AddRazorPages();
+
+// Swagger/OpenAPI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+
+// Seed default roles/admin user
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var db = services.GetRequiredService<ApplicationDbContext>();
+    var logger = services.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        // Apply pending migrations
+        Console.WriteLine("Initializing database...");
+        logger.LogInformation("Applying migrations...");
+        await db.Database.MigrateAsync();
+        Console.WriteLine("Database initialized successfully");
+        logger.LogInformation("Database initialized successfully");
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Database migration had warnings - continuing startup. Details: {Message}", ex.Message);
+        // Continue even if migrations fail (database might already exist)
+    }
+
+    try
+    {
+        var roleManager = services.GetRequiredService<RoleManager<ApplicationRole>>();
+        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+
+        string[] roles = ["User", "Seller", "Admin"]; 
+        foreach (var roleName in roles)
+        {
+            if (!await roleManager.RoleExistsAsync(roleName))
+            {
+                await roleManager.CreateAsync(new ApplicationRole { Name = roleName });
+            }
+        }
+
+        var adminEmail = "admin@sparkle.local";
+        var admin = await userManager.FindByEmailAsync(adminEmail);
+        if (admin is null)
+        {
+            admin = new ApplicationUser
+            {
+                UserName = adminEmail,
+                Email = adminEmail,
+                EmailConfirmed = true,
+                FullName = "Super Admin"
+            };
+
+            var createResult = await userManager.CreateAsync(admin, "Admin@123");
+            if (createResult.Succeeded)
+            {
+                await userManager.AddToRoleAsync(admin, "Admin");
+            }
+        }
+
+        // Seed comprehensive categories (24 categories for Bangladesh e-commerce)
+        // Ensure each required category slug exists even if the table already has older data
+        var requiredCategories = new List<Category>
+        {
+            new Category { Name = "Electronics & Gadgets", Slug = "electronics-gadgets" },
+            new Category { Name = "Fashion & Lifestyle", Slug = "fashion-lifestyle" },
+            new Category { Name = "Home & Living", Slug = "home-living" },
+            new Category { Name = "Mobiles & Tablets", Slug = "mobiles-tablets" },
+            new Category { Name = "Laptops & Computers", Slug = "laptops-computers" },
+            new Category { Name = "Home Appliances", Slug = "home-appliances" },
+            new Category { Name = "Kitchen & Small Appliances", Slug = "kitchen-small-appliances" },
+            new Category { Name = "Beauty & Personal Care", Slug = "beauty-personal-care" },
+            new Category { Name = "Jewelry & Accessories", Slug = "jewelry-accessories" },
+            new Category { Name = "Groceries & Essentials", Slug = "groceries-essentials" },
+            new Category { Name = "Baby, Kids & Mom", Slug = "baby-kids-mom" },
+            new Category { Name = "Toys & Games", Slug = "toys-games" },
+            new Category { Name = "Books & Stationery", Slug = "books-stationery" },
+            new Category { Name = "Sports & Outdoors", Slug = "sports-outdoors" },
+            new Category { Name = "Automotive & Bike", Slug = "automotive-bike" },
+            new Category { Name = "Pet Supplies", Slug = "pet-supplies" },
+            new Category { Name = "Local BD Brands", Slug = "local-bd-brands" },
+            new Category { Name = "Medicine & Wellness", Slug = "medicine-wellness" },
+            new Category { Name = "Photography & Camera", Slug = "photography-camera" },
+            new Category { Name = "Art & Crafts", Slug = "art-crafts" },
+            new Category { Name = "Musical Instruments", Slug = "musical-instruments" },
+            new Category { Name = "Garden & Outdoor", Slug = "garden-outdoor" },
+            new Category { Name = "Travel & Luggage", Slug = "travel-luggage" },
+            new Category { Name = "Fitness & Gym", Slug = "fitness-gym" }
+        };
+
+        foreach (var cat in requiredCategories)
+        {
+            var existing = await db.Categories.FirstOrDefaultAsync(c => c.Slug == cat.Slug);
+            if (existing == null)
+            {
+                db.Categories.Add(cat);
+            }
+            else if (existing.Name != cat.Name)
+            {
+                existing.Name = cat.Name;
+            }
+        }
+
+        if (db.ChangeTracker.HasChanges())
+        {
+            await db.SaveChangesAsync();
+        }
+
+        // Seed 25 comprehensive sellers with realistic Bangladesh business data
+        if (!await db.Sellers.AnyAsync())
+        {
+            var sellerConfigs = new[]
+            {
+                // Original 10 sellers
+                new { Email = "dailyessentials@sparkle.local", Password = "Vendor@123", FullName = "Abdul Malek", ShopName = "Daily Essentials BD", ShopDescription = "Your one-stop shop for daily household needs, electronics, and kitchenware. Quality products at affordable prices.", City = "Dhaka", District = "Dhaka", Phone = "+880 1711-223344", Bkash = "01711223344", Rating = 4.8m, Address = "Plot-5, Road-12, Section-10, Mirpur, Dhaka" },
+                new { Email = "dailymart@sparkle.local", Password = "Vendor@123", FullName = "Salma Begum", ShopName = "DailyMart BD", ShopDescription = "Everything you need for your daily life. Groceries, home appliances, and household essentials delivered to your door.", City = "Chittagong", District = "Chittagong", Phone = "+880 1822-334455", Bkash = "01822334455", Rating = 4.7m, Address = "12, Nellie Road, Chittagong-4000" },
+                new { Email = "homeneeds@sparkle.local", Password = "Vendor@123", FullName = "Rafiq Ahmed", ShopName = "HomeNeeds BD", ShopDescription = "Quality home essentials, electronics, and personal care products. Committed to improving your daily living standards.", City = "Dhaka", District = "Dhaka", Phone = "+880 1734-567890", Bkash = "01734567890", Rating = 4.6m, Address = "78/B, Dhanmondi, Dhaka-1209" },
+                new { Email = "mobilebazar@sparkle.local", Password = "Vendor@123", FullName = "Jamal Uddin", ShopName = "Mobile Bazar Bangladesh", ShopDescription = "Authorized reseller of Samsung, Xiaomi, Realme, Oppo. Best mobile prices in Bangladesh with EMI facility available.", City = "Sylhet", District = "Sylhet", Phone = "+880 1745-678901", Bkash = "01745678901", Rating = 4.8m, Address = "12, Zindabazar, Sylhet-3100" },
+                new { Email = "freshmart@sparkle.local", Password = "Vendor@123", FullName = "Nasrin Akter", ShopName = "Fresh Mart BD", ShopDescription = "Daily fresh groceries delivered to your doorstep. Organic vegetables, premium spices, and halal meat products.", City = "Dhaka", District = "Dhaka", Phone = "+880 1756-789012", Bkash = "01756789012", Rating = 4.4m, Address = "56, Banani, Dhaka-1213" },
+                new { Email = "beautyzone@sparkle.local", Password = "Vendor@123", FullName = "Sumaiya Khan", ShopName = "Beauty Zone Cosmetics", ShopDescription = "100% original cosmetics and skincare products. Authorized distributor of international brands in Bangladesh.", City = "Dhaka", District = "Dhaka", Phone = "+880 1767-890123", Bkash = "01767890123", Rating = 4.9m, Address = "34, Gulshan-2, Dhaka-1212" },
+                new { Email = "sportsworld@sparkle.local", Password = "Vendor@123", FullName = "Rubel Islam", ShopName = "Sports World BD", ShopDescription = "Complete sports equipment and fitness gear. From cricket to gym equipment, we have everything for athletes.", City = "Khulna", District = "Khulna", Phone = "+880 1778-901234", Bkash = "01778901234", Rating = 4.3m, Address = "89, Sonadanga, Khulna-9100" },
+                new { Email = "computerplus@sparkle.local", Password = "Vendor@123", FullName = "Tamim Hasan", ShopName = "Computer Plus Solutions", ShopDescription = "Laptops, desktops, accessories, and IT solutions. Trusted by 5000+ customers across Bangladesh.", City = "Dhaka", District = "Dhaka", Phone = "+880 1789-012345", Bkash = "01789012345", Rating = 4.7m, Address = "67, IDB Bhaban, Agargaon, Dhaka-1207" },
+                new { Email = "bookshop@sparkle.local", Password = "Vendor@123", FullName = "Farhan Chowdhury", ShopName = "Book Lovers Paradise", ShopDescription = "Largest collection of Bengali and English books. Academic, novels, Islamic books, and stationery supplies.", City = "Rajshahi", District = "Rajshahi", Phone = "+880 1790-123456", Bkash = "01790123456", Rating = 4.6m, Address = "23, Shaheb Bazar, Rajshahi-6100" },
+                new { Email = "babyshop@sparkle.local", Password = "Vendor@123", FullName = "Mehjabin Sultana", ShopName = "Baby Care Heaven", ShopDescription = "Everything for your little ones - diapers, toys, baby food, and mom care products. Trusted by Bangladeshi parents.", City = "Dhaka", District = "Dhaka", Phone = "+880 1701-234567", Bkash = "01701234567", Rating = 4.8m, Address = "92, Uttara, Sector-7, Dhaka-1230" },
+                
+                // Additional 15 sellers for expanded catalog
+                new { Email = "jewelrypalace@sparkle.local", Password = "Vendor@123", FullName = "Sabrina Ahmed", ShopName = "Jewelry Palace BD", ShopDescription = "Exquisite gold, silver, and diamond jewelry. Traditional and modern designs. Trusted jeweler since 2010.", City = "Dhaka", District = "Dhaka", Phone = "+880 1812-345678", Bkash = "01812345678", Rating = 4.9m, Address = "156, New Market, Dhaka-1205" },
+                new { Email = "pharmaeasy@sparkle.local", Password = "Vendor@123", FullName = "Dr. Ashraf Hossain", ShopName = "PharmaEasy Bangladesh", ShopDescription = "Licensed pharmacy with 24/7 medicine delivery. Genuine medicines, health supplements, and wellness products.", City = "Dhaka", District = "Dhaka", Phone = "+880 1823-456789", Bkash = "01823456789", Rating = 4.8m, Address = "45, Farmgate, Dhaka-1215" },
+                new { Email = "petworld@sparkle.local", Password = "Vendor@123", FullName = "Tanvir Rahman", ShopName = "Pet World Bangladesh", ShopDescription = "Complete pet care solutions. Pet food, accessories, grooming products for dogs, cats, birds, and fish.", City = "Dhaka", District = "Dhaka", Phone = "+880 1834-567890", Bkash = "01834567890", Rating = 4.5m, Address = "78, Banasree, Dhaka-1219" },
+                new { Email = "camerahub@sparkle.local", Password = "Vendor@123", FullName = "Imran Khan", ShopName = "Camera Hub BD", ShopDescription = "Professional cameras, lenses, drones, and photography equipment. Authorized Canon, Nikon, Sony dealer.", City = "Dhaka", District = "Dhaka", Phone = "+880 1845-678901", Bkash = "01845678901", Rating = 4.7m, Address = "234, Elephant Road, Dhaka-1205" },
+                new { Email = "autoparts@sparkle.local", Password = "Vendor@123", FullName = "Rahim Uddin", ShopName = "Auto Parts Bangladesh", ShopDescription = "Genuine car and bike parts, accessories, engine oil, and automotive tools. Quick delivery across Bangladesh.", City = "Chittagong", District = "Chittagong", Phone = "+880 1856-789012", Bkash = "01856789012", Rating = 4.4m, Address = "67, Muradpur, Chittagong-4212" },
+                new { Email = "musicstore@sparkle.local", Password = "Vendor@123", FullName = "Anika Tabassum", ShopName = "Music Store Bangladesh", ShopDescription = "Musical instruments, sound systems, DJ equipment, guitars, keyboards. Professional setup and training available.", City = "Dhaka", District = "Dhaka", Phone = "+880 1867-890123", Bkash = "01867890123", Rating = 4.6m, Address = "89, Dhanmondi 27, Dhaka-1209" },
+                new { Email = "gardenstore@sparkle.local", Password = "Vendor@123", FullName = "Hasan Mahmud", ShopName = "Garden Store BD", ShopDescription = "Plants, seeds, gardening tools, fertilizers, and outdoor decor. Create your dream garden with expert guidance.", City = "Dhaka", District = "Dhaka", Phone = "+880 1878-901234", Bkash = "01878901234", Rating = 4.5m, Address = "123, Mirpur 10, Dhaka-1216" },
+                new { Email = "travelgear@sparkle.local", Password = "Vendor@123", FullName = "Nadia Islam", ShopName = "Travel Gear Bangladesh", ShopDescription = "Quality luggage, travel bags, backpacks, and travel accessories. Durable and stylish for all your journeys.", City = "Sylhet", District = "Sylhet", Phone = "+880 1889-012345", Bkash = "01889012345", Rating = 4.7m, Address = "45, Zindabazar, Sylhet-3100" },
+                new { Email = "artcraft@sparkle.local", Password = "Vendor@123", FullName = "Mahbub Alam", ShopName = "Art & Craft Corner", ShopDescription = "Art supplies, craft materials, painting tools, DIY kits. Everything for artists and hobbyists.", City = "Dhaka", District = "Dhaka", Phone = "+880 1890-123456", Bkash = "01890123456", Rating = 4.6m, Address = "56, Kataban, Dhaka-1217" },
+                new { Email = "fitnessgear@sparkle.local", Password = "Vendor@123", FullName = "Sakib Ahmed", ShopName = "Fitness Gear Pro", ShopDescription = "Professional gym equipment, fitness supplements, yoga mats, dumbbells. Build your home gym with us.", City = "Dhaka", District = "Dhaka", Phone = "+880 1801-234567", Bkash = "01801234567", Rating = 4.8m, Address = "34, Bashundhara, Dhaka-1229" },
+                new { Email = "toysrus@sparkle.local", Password = "Vendor@123", FullName = "Farhana Begum", ShopName = "Toys R Us Bangladesh", ShopDescription = "Educational toys, action figures, dolls, puzzles, and board games. Safe and certified toys for all ages.", City = "Chittagong", District = "Chittagong", Phone = "+880 1913-345678", Bkash = "01913345678", Rating = 4.7m, Address = "78, GEC Circle, Chittagong-4000" },
+                new { Email = "electroniccity@sparkle.local", Password = "Vendor@123", FullName = "Jahangir Alam", ShopName = "Electronic City BD", ShopDescription = "TVs, refrigerators, washing machines, ACs, and kitchen appliances. Authorized dealer of LG, Samsung, Walton.", City = "Dhaka", District = "Dhaka", Phone = "+880 1924-456789", Bkash = "01924456789", Rating = 4.6m, Address = "123, Shantinagar, Dhaka-1217" },
+                new { Email = "medicalequip@sparkle.local", Password = "Vendor@123", FullName = "Dr. Sultana Kamal", ShopName = "Medical Equipment BD", ShopDescription = "Medical devices, wheelchairs, blood pressure monitors, diabetes care, orthopedic supports, and health monitoring devices.", City = "Dhaka", District = "Dhaka", Phone = "+880 1935-567890", Bkash = "01935567890", Rating = 4.8m, Address = "67, Mohakhali, Dhaka-1212" },
+                new { Email = "officemaster@sparkle.local", Password = "Vendor@123", FullName = "Kamrul Hassan", ShopName = "Office Master BD", ShopDescription = "Office furniture, chairs, desks, filing cabinets, and complete office setup solutions for businesses.", City = "Dhaka", District = "Dhaka", Phone = "+880 1946-678901", Bkash = "01946678901", Rating = 4.5m, Address = "89, Panthapath, Dhaka-1215" },
+                new { Email = "kidszone@sparkle.local", Password = "Vendor@123", FullName = "Roksana Akter", ShopName = "Kids Zone Fashion", ShopDescription = "Trendy kids clothing, shoes, school uniforms, and accessories. Quality fashion for babies to teenagers.", City = "Dhaka", District = "Dhaka", Phone = "+880 1957-789012", Bkash = "01957789012", Rating = 4.7m, Address = "45, Elephant Road, Dhaka-1205" }
+            };
+
+            var sellers = new List<Seller>();
+            foreach (var config in sellerConfigs)
+            {
+                var sellerUser = new ApplicationUser
+                {
+                    UserName = config.Email,
+                    Email = config.Email,
+                    EmailConfirmed = true,
+                    FullName = config.FullName,
+                    IsSeller = true
+                };
+
+                var sellerCreate = await userManager.CreateAsync(sellerUser, config.Password);
+                if (sellerCreate.Succeeded)
+                {
+                    await userManager.AddToRoleAsync(sellerUser, "Seller");
+
+                    var seller = new Seller
+                    {
+                        UserId = sellerUser.Id,
+                        ShopName = config.ShopName,
+                        ShopDescription = config.ShopDescription,
+                        Status = SellerStatus.Active,
+                        StoreLogo = $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(config.ShopName)}&size=200&background=random",
+                        StoreBanner = $"https://via.placeholder.com/1200x300/6366f1/ffffff?text={Uri.EscapeDataString(config.ShopName)}",
+                        City = config.City,
+                        District = config.District,
+                        Country = "Bangladesh",
+                        MobileNumber = config.Phone,
+                        BkashMerchantNumber = config.Bkash,
+                        BusinessAddress = config.Address,
+                        Rating = config.Rating,
+                        CreatedAt = DateTime.UtcNow.AddMonths(-new Random().Next(6, 24)),
+                        ApprovedAt = DateTime.UtcNow.AddMonths(-new Random().Next(1, 6))
+                    };
+
+                    db.Sellers.Add(seller);
+                    sellers.Add(seller);
+                }
+            }
+
+            await db.SaveChangesAsync();
+        }
+
+        // Product seeding using ProductSeedingService
+        var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+        var productSeeder = new Sparkle.Api.Services.ProductSeedingService(db, loggerFactory.CreateLogger<Sparkle.Api.Services.ProductSeedingService>());
+        await productSeeder.SeedProductsAsync();
+
+
+        // Seed a demo customer user for testing
+        var customerEmail = "user@sparkle.local";
+        var customerUser = await userManager.FindByEmailAsync(customerEmail);
+        if (customerUser is null)
+        {
+            customerUser = new ApplicationUser
+            {
+                UserName = customerEmail,
+                Email = customerEmail,
+                EmailConfirmed = true,
+                FullName = "Demo Customer"
+            };
+            var customerCreate = await userManager.CreateAsync(customerUser, "User@123");
+            if (customerCreate.Succeeded)
+            {
+                await userManager.AddToRoleAsync(customerUser, "User");
+            }
+        }
+
+        // Seed Location Data (Zones & Areas)
+        if (!await db.DeliveryZones.AnyAsync())
+        {
+            var locationSeeder = services.GetRequiredService<Sparkle.Infrastructure.Services.LocationSeedingService>();
+            var zones = locationSeeder.GetZones();
+            db.DeliveryZones.AddRange(zones);
+            await db.SaveChangesAsync();
+            
+            var dhakaZone = await db.DeliveryZones.FirstOrDefaultAsync(z => z.Name == "Inside Dhaka");
+            var suburbsZone = await db.DeliveryZones.FirstOrDefaultAsync(z => z.Name == "Dhaka Suburbs");
+            
+            if (dhakaZone != null)
+            {
+                var areas = locationSeeder.GetDhakaAreas();
+                foreach(var area in areas) area.ZoneId = dhakaZone.Id;
+                db.DeliveryAreas.AddRange(areas);
+            }
+            
+            if (suburbsZone != null)
+            {
+                var areas = locationSeeder.GetDhakaSuburbs();
+                foreach(var area in areas) area.ZoneId = suburbsZone.Id;
+                db.DeliveryAreas.AddRange(areas);
+            }
+            
+            await db.SaveChangesAsync();
+            logger.LogInformation("Seeded delivery zones and areas");
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred during database seeding.");
+    }
+}
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+else
+{
+    app.UseExceptionHandler("/Home/Error");
+    app.UseHsts();
+    // Only redirect to HTTPS in production
+    app.UseHttpsRedirection();
+}
+
+// Enable response compression (must be before UseStaticFiles)
+app.UseResponseCompression();
+
+// Static files with caching
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Cache static files for 7 days
+        const int durationInSeconds = 60 * 60 * 24 * 7;
+        ctx.Context.Response.Headers.Append("Cache-Control", $"public,max-age={durationInSeconds}");
+    }
+});
+
+app.UseRouting();
+
+// Response caching middleware
+app.UseResponseCaching();
+
+app.UseSession(); // Enable session for checkout flow
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+// MVC routes for UI panels
+app.MapControllerRoute(
+    name: "areas",
+    pattern: "{area:exists}/{controller=Dashboard}/{action=Index}/{id?}");
+
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
+
+// Attribute-routed API controllers
+app.MapControllers();
+
+// SignalR Hub Routes
+app.MapHub<Sparkle.Api.Hubs.InventoryHub>("/hubs/inventory");
+app.MapHub<Sparkle.Api.Hubs.OrderTrackingHub>("/hubs/ordertracking");
+app.MapHub<Sparkle.Api.Hubs.NotificationHub>("/hubs/notification");
+
+app.Run();

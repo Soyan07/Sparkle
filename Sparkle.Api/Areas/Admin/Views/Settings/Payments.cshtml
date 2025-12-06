@@ -1,0 +1,84 @@
+@model Sparkle.Api.Areas.Admin.Controllers.PaymentSettingsViewModel
+@{
+    ViewData["Title"] = "Payment Settings";
+    Layout = "_SettingsLayout";
+}
+
+<h4 class="mb-4">Payment Configuration</h4>
+
+<form method="post" asp-action="SavePayments">
+    <!-- Currency -->
+    <div class="mb-4">
+        <label asp-for="Currency" class="form-label">Store Currency</label>
+        <select asp-for="Currency" class="form-select w-auto">
+            <option value="BDT">BDT (Bangladeshi Taka)</option>
+            <option value="USD">USD (US Dollar)</option>
+        </select>
+    </div>
+
+    <!-- COD -->
+    <div class="card mb-3">
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title mb-1">Cash on Delivery</h5>
+                <p class="card-text text-muted small mb-0">Accept payments when orders are delivered.</p>
+            </div>
+            <div class="form-check form-switch">
+                <input asp-for="EnableCOD" class="form-check-input" type="checkbox">
+            </div>
+        </div>
+    </div>
+
+    <!-- Bkash -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="card-title mb-1">bKash</h5>
+                    <p class="card-text text-muted small mb-0">Accept payments via bKash mobile banking.</p>
+                </div>
+                <div class="form-check form-switch">
+                    <input asp-for="EnableBkash" class="form-check-input" type="checkbox" data-bs-toggle="collapse" data-bs-target="#bkashConfig">
+                </div>
+            </div>
+            <div class="collapse @(Model.EnableBkash ? "show" : "")" id="bkashConfig">
+                <div class="bg-light p-3 rounded">
+                    <label asp-for="BkashMerchantNumber" class="form-label">Merchant Wallet Number</label>
+                    <input asp-for="BkashMerchantNumber" class="form-control" placeholder="01XXXXXXXXX" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stripe -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="card-title mb-1">Stripe (Credit Cards)</h5>
+                    <p class="card-text text-muted small mb-0">Accept Visa, Mastercard, and international payments.</p>
+                </div>
+                <div class="form-check form-switch">
+                    <input asp-for="EnableStripe" class="form-check-input" type="checkbox" data-bs-toggle="collapse" data-bs-target="#stripeConfig">
+                </div>
+            </div>
+            <div class="collapse @(Model.EnableStripe ? "show" : "")" id="stripeConfig">
+                <div class="bg-light p-3 rounded">
+                    <div class="mb-3">
+                        <label asp-for="StripePublishableKey" class="form-label">Publishable Key</label>
+                        <input asp-for="StripePublishableKey" class="form-control" />
+                    </div>
+                    <div class="mb-0">
+                        <label asp-for="StripeSecretKey" class="form-label">Secret Key</label>
+                        <input asp-for="StripeSecretKey" class="form-control" type="password" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end mt-4">
+        <button type="submit" class="btn btn-primary px-4">Save Changes</button>
+    </div>
+</form>
+

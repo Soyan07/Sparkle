@@ -1,0 +1,108 @@
+@model Sparkle.Domain.Orders.Order
+@{
+    ViewData["Title"] = "Order Confirmation";
+    var langCookie = Context.Request.Cookies["sparkle-lang"] == "bn" ? "bn" : "en";
+    var isBangla = langCookie == "bn";
+}
+
+<style>
+    .confirmation-page { padding: 3rem 0; background: #f8f9fa; min-height: calc(100vh - 400px); }
+    .success-icon { font-size: 5rem; color: #28a745; margin-bottom: 1.5rem; }
+    .confirmation-card { background: white; padding: 2rem; border-radius: 8px; text-align: center; margin-bottom: 2rem; }
+    .order-details { background: white; padding: 2rem; border-radius: 8px; }
+    .btn-track { background: #ff6a00; color: white; padding: 0.75rem 2rem; border: none; border-radius: 4px; font-weight: 600; text-decoration: none; display: inline-block; }
+    .btn-track:hover { background: #e65f00; color: white; }
+</style>
+
+<div class="confirmation-page">
+    <div class="container">
+        <div class="confirmation-card">
+            <div class="success-icon">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <h1 class="sparkle-section-title mb-2">@(isBangla ? "অর্ডার সফলভাবে সম্পন্ন হয়েছে!" : "Order Placed Successfully!")</h1>
+            <p class="lead sparkle-section-subtitle mb-2">@(isBangla ? "আপনার অর্ডারের জন্য ধন্যবাদ" : "Thank you for your order")</p>
+            <p class="text-muted">@(isBangla ? "অর্ডার আইডি:" : "Order ID:") <strong>#@Model.Id</strong></p>
+            <p>@(isBangla ? "আপনার নিবন্ধিত ইমেইলে একটি কনফার্মেশন পাঠানো হয়েছে।" : "We've sent a confirmation email to your registered email address.")</p>
+            <div class="mt-4">
+                <a href="/orders/track/@Model.Id" class="btn-track">
+                    <i class="bi bi-geo-alt-fill"></i> @(isBangla ? "অর্ডার ট্র্যাক করুন" : "Track Your Order")
+                </a>
+                <a href="/" class="btn btn-outline-secondary ms-2">@(isBangla ? "কেনাকাটা চালিয়ে যান" : "Continue Shopping")</a>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="order-details">
+                    <h4 class="sparkle-section-title mb-3">@(isBangla ? "শিপিং ঠিকানা" : "Shipping Address")</h4>
+                    <p>
+                        <strong>@Model.ShippingAddress?.FullName</strong><br>
+                        @Model.ShippingAddress?.Phone<br>
+                        @Model.ShippingAddress?.Line1<br>
+                        @if (!string.IsNullOrEmpty(Model.ShippingAddress?.Line2))
+                        {
+                            @Model.ShippingAddress?.Line2<br>
+                        }
+                        @Model.ShippingAddress?.City, @Model.ShippingAddress?.State @Model.ShippingAddress?.PostalCode<br>
+                        @Model.ShippingAddress?.Country
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="order-details">
+                    <h4 class="sparkle-section-title mb-3">@(isBangla ? "অর্ডার সারাংশ" : "Order Summary")</h4>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>@(isBangla ? "সাবটোটাল:" : "Subtotal:")</span>
+                        <span>৳ @Model.Subtotal.ToString("N2")</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>@(isBangla ? "শিপিং:" : "Shipping:")</span>
+                        <span>৳ @Model.ShippingFee.ToString("N2")</span>
+                    </div>
+                    @if (Model.DiscountTotal > 0)
+                    {
+                        <div class="d-flex justify-content-between mb-2 text-success">
+                            <span>@(isBangla ? "ডিসকাউন্ট:" : "Discount:")</span>
+                            <span>−৳ @Model.DiscountTotal.ToString("N2")</span>
+                        </div>
+                    }
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <strong>@(isBangla ? "মোট:" : "Total:")</strong>
+                        <strong class="text-primary">৳ @Model.Total.ToString("N2")</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="order-details mt-3">
+            <h4 class="sparkle-section-title mb-3">@(isBangla ? "অর্ডার আইটেম" : "Order Items")</h4>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>@(isBangla ? "পণ্য" : "Product")</th>
+                            <th>@(isBangla ? "ভ্যারিয়েন্ট" : "Variant")</th>
+                            <th>@(isBangla ? "পরিমাণ" : "Quantity")</th>
+                            <th>@(isBangla ? "দাম" : "Price")</th>
+                            <th>@(isBangla ? "মোট" : "Total")</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr>
+                                <td>@item.ProductTitle</td>
+                                <td>@item.VariantDescription</td>
+                                <td>@item.Quantity</td>
+                                <td>৳ @item.UnitPrice.ToString("N2")</td>
+                                <td>৳ @item.LineTotal.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

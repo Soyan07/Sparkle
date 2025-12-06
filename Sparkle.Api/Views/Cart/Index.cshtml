@@ -1,0 +1,267 @@
+@model Sparkle.Api.Controllers.CartController.CartViewModel
+@{
+    ViewData["Title"] = "Shopping Cart";
+    var langCookie = Context.Request.Cookies["sparkle-lang"] == "bn" ? "bn" : "en";
+    var isBangla = langCookie == "bn";
+}
+
+<style>
+    .cart-page { padding: 2rem 0; background: #f8f9fa; min-height: calc(100vh - 400px); }
+    .cart-item { background: white; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem; display: flex; gap: 1.5rem; }
+    .cart-item-image { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+    .cart-item-details { flex: 1; }
+    .cart-item-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; color: #333; }
+    .cart-item-variant { font-size: 0.9rem; color: #666; margin-bottom: 0.5rem; }
+    .cart-item-price { font-size: 1.2rem; font-weight: 700; color: #ff6a00; }
+    .cart-item-actions { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; }
+    .quantity-control { display: flex; align-items: center; border: 1px solid #ddd; border-radius: 4px; }
+    .quantity-control button { border: none; background: white; padding: 0.5rem 1rem; cursor: pointer; font-size: 1.2rem; }
+    .quantity-control button:hover { background: #f5f5f5; }
+    .quantity-control input { width: 60px; text-align: center; border: none; padding: 0.5rem; font-weight: 600; }
+    .remove-btn { color: #dc3545; cursor: pointer; font-size: 0.9rem; }
+    .remove-btn:hover { text-decoration: underline; }
+    .summary-box { background: white; padding: 1.5rem; border-radius: 8px; position: sticky; top: 120px; }
+    .summary-row { display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #eee; }
+    .summary-total { font-size: 1.3rem; font-weight: 700; color: #ff6a00; padding: 1rem 0; border-top: 2px solid #ff6a00; margin-top: 0.5rem; }
+    .promo-input-group { display: flex; gap: 0.5rem; margin: 1rem 0; }
+    .promo-input-group input { flex: 1; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; }
+    .promo-input-group button { padding: 0.75rem 1.5rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+    .promo-input-group button:hover { background: #218838; }
+    .promo-applied { background: #d4edda; padding: 0.75rem; border-radius: 4px; margin: 1rem 0; color: #155724; display: flex; justify-content: space-between; align-items: center; }
+    .promo-remove { cursor: pointer; color: #721c24; }
+    .checkout-btn { width: 100%; padding: 1rem; background: #ff6a00; color: white; border: none; border-radius: 4px; font-size: 1.1rem; font-weight: 600; cursor: pointer; margin-top: 1rem; }
+    .checkout-btn:hover { background: #e65f00; }
+    .empty-cart { text-align: center; padding: 4rem 0; }
+    .empty-cart i { font-size: 5rem; color: #ccc; margin-bottom: 1.5rem; }
+    .cross-sell { background: white; padding: 2rem; border-radius: 8px; margin-top: 2rem; }
+    .cross-sell-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 1.5rem; }
+    .stock-warning { color: #dc3545; font-size: 0.85rem; font-weight: 600; margin-top: 0.5rem; }
+    .stock-ok { color: #28a745; font-size: 0.85rem; }
+</style>
+
+<div class="cart-page">
+    <div class="container">
+        @if (!Model.Cart.Items.Any())
+        {
+            <div class="empty-cart">
+                <i class="bi bi-cart-x"></i>
+                <h2 class="sparkle-section-title mb-2">@(isBangla ? "আপনার কার্ট খালি" : "Your cart is empty")</h2>
+                <p class="sparkle-section-subtitle mb-3">@(isBangla ? "কিছু পণ্য যোগ করে কেনাকাটা শুরু করুন!" : "Add some products to get started!")</p>
+                <a href="/" class="btn btn-primary btn-lg mt-3">@(isBangla ? "কেনাকাটা চালিয়ে যান" : "Continue Shopping")</a>
+            </div>
+        }
+        else
+        {
+            <div class="mb-4">
+                <h1 class="sparkle-section-title mb-1">@(isBangla ? "শপিং কার্ট" : "Shopping Cart")</h1>
+                <p class="sparkle-section-subtitle mb-0">@Model.Cart.Items.Count @(isBangla ? "টি আইটেম" : "item(s)")</p>
+            </div>
+            
+            <div class="row">
+                <!-- Cart Items -->
+                <div class="col-lg-8">
+                    @foreach (var item in Model.Cart.Items)
+                    {
+                        var product = item.ProductVariant.Product;
+                        var variant = item.ProductVariant;
+                        var imageUrl = product.Images?.FirstOrDefault()?.Url ?? "https://via.placeholder.com/120";
+                        var lineTotal = item.UnitPrice * item.Quantity;
+                        
+                        <div class="cart-item" data-item-id="@item.Id" data-variant-id="@variant.Id">
+                            <img src="@imageUrl" alt="@product.Title" class="cart-item-image">
+                            <div class="cart-item-details">
+                                <a href="/product/@product.Id" class="cart-item-title">@product.Title</a>
+                                <div class="cart-item-variant">
+                                    @if (!string.IsNullOrEmpty(variant.Color))
+                                    {
+                                        <span>Color: @variant.Color</span>
+                                    }
+                                    @if (!string.IsNullOrEmpty(variant.Size))
+                                    {
+                                        <span> | Size: @variant.Size</span>
+                                    }
+                                </div>
+                                <div class="cart-item-price">
+                                    ৳ @lineTotal.ToString("N2")
+                                    <span class="text-muted" style="font-size: 0.85rem; font-weight: 400;">
+                                        (৳ @item.UnitPrice.ToString("N2") × @item.Quantity)
+                                    </span>
+                                </div>
+                                <div class="stock-status">
+                                    @if (variant.Stock < item.Quantity)
+                                    {
+                                        <div class="stock-warning">
+                                            <i class="bi bi-exclamation-triangle-fill"></i>
+                                            Only @variant.Stock left in stock
+                                        </div>
+                                    }
+                                    else if (variant.Stock <= 10)
+                                    {
+                                        <div class="stock-warning">Low stock: @variant.Stock remaining</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="stock-ok"><i class="bi bi-check-circle-fill"></i> In Stock</div>
+                                    }
+                                </div>
+                                <div class="cart-item-actions">
+                                    <form method="post" action="/cart/update" class="quantity-form">
+                                        <input type="hidden" name="itemId" value="@item.Id">
+                                        <div class="quantity-control">
+                                            <button type="button" class="qty-minus" onclick="updateQuantity(@item.Id, -1)">−</button>
+                                            <input type="number" name="quantity" value="@item.Quantity" min="1" max="@variant.Stock" readonly>
+                                            <button type="button" class="qty-plus" onclick="updateQuantity(@item.Id, 1)">+</button>
+                                        </div>
+                                    </form>
+                                    <form method="post" action="/cart/remove">
+                                        <input type="hidden" name="itemId" value="@item.Id">
+                                        <button type="submit" class="remove-btn btn btn-link">
+                                            <i class="bi bi-trash"></i> @(isBangla ? "মুছে ফেলুন" : "Remove")
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- Order Summary -->
+                <div class="col-lg-4">
+                    <div class="summary-box">
+                        <h3 class="sparkle-section-title mb-3">@(isBangla ? "অর্ডার সারাংশ" : "Order Summary")</h3>
+                        <div class="summary-row">
+                            <span>@(isBangla ? "সাবটোটাল" : "Subtotal")</span>
+                            <span class="subtotal-amount">৳ @Model.Subtotal.ToString("N2")</span>
+                        </div>
+                        <div class="summary-row discount-row" style="display: none;">
+                            <span>@(isBangla ? "ডিসকাউন্ট" : "Discount")</span>
+                            <span class="discount-amount text-success">−৳0.00</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>@(isBangla ? "শিপিং" : "Shipping")</span>
+                            <span class="text-muted" style="font-size: 0.9rem;">@(isBangla ? "চেকআউটে হিসাব করা হবে" : "Calculated at checkout")</span>
+                        </div>
+                        <div class="summary-row summary-total">
+                            <span>@(isBangla ? "টোটাল" : "Total")</span>
+                            <span class="total-amount">৳ @Model.Subtotal.ToString("N2")</span>
+                        </div>
+
+                        <!-- Promo Code -->
+                        <div class="promo-section">
+                            <div class="promo-applied" style="display: none;">
+                                <span>
+                                    <i class="bi bi-tag-fill"></i>
+                                    <span class="promo-code-name"></span> @(isBangla ? "প্রযোজ্য হয়েছে" : "applied")
+                                </span>
+                                <span class="promo-remove" onclick="removePromo()">
+                                    <i class="bi bi-x-lg"></i>
+                                </span>
+                            </div>
+                            <div class="promo-input-group">
+                                <input type="text" id="promoCode" placeholder="@(isBangla ? "প্রোমো কোড লিখুন" : "Enter promo code")" class="promo-input">
+                                <button onclick="applyPromo()" class="apply-promo-btn">@(isBangla ? "প্রয়োগ করুন" : "Apply")</button>
+                            </div>
+                            <small class="text-muted">@(isBangla ? "ট্রাই করুন: WELCOME10, SAVE50, FLASH20" : "Try: WELCOME10, SAVE50, FLASH20")</small>
+                        </div>
+
+                        <button onclick="proceedToCheckout()" class="checkout-btn">
+                            <i class="bi bi-lock-fill"></i> @(isBangla ? "চেকআউটে যান" : "Proceed to Checkout")
+                        </button>
+
+                        <div class="text-center mt-3">
+                            <a href="/" class="text-muted">
+                                <i class="bi bi-arrow-left"></i> @(isBangla ? "কেনাকাটা চালিয়ে যান" : "Continue Shopping")
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<script>
+    let appliedPromo = null;
+    const originalSubtotal = @Model.Subtotal;
+
+    function updateQuantity(itemId, delta) {
+        const itemDiv = document.querySelector(`[data-item-id="${itemId}"]`);
+        const input = itemDiv.querySelector('input[name="quantity"]');
+        const currentQty = parseInt(input.value);
+        const maxQty = parseInt(input.max);
+        const newQty = Math.max(1, Math.min(maxQty, currentQty + delta));
+        
+        if (newQty !== currentQty) {
+            input.value = newQty;
+            const form = itemDiv.querySelector('.quantity-form');
+            form.submit();
+        }
+    }
+
+    async function applyPromo() {
+        const promoInput = document.getElementById('promoCode');
+        const code = promoInput.value.trim().toUpperCase();
+        
+        if (!code) {
+            alert('Please enter a promo code');
+            return;
+        }
+
+        // Mock promo codes validation
+        const promoCodes = {
+            'WELCOME10': { discount: 10, type: 'percentage' },
+            'SAVE50': { discount: 50, type: 'fixed' },
+            'FLASH20': { discount: 20, type: 'percentage' }
+        };
+
+        const promo = promoCodes[code];
+        if (!promo) {
+            alert('Invalid promo code');
+            return;
+        }
+
+        appliedPromo = { code, ...promo };
+        updateSummary();
+        
+        document.querySelector('.promo-applied').style.display = 'flex';
+        document.querySelector('.promo-code-name').textContent = code;
+        document.querySelector('.promo-input-group').style.display = 'none';
+        promoInput.value = '';
+    }
+
+    function removePromo() {
+        appliedPromo = null;
+        updateSummary();
+        document.querySelector('.promo-applied').style.display = 'none';
+        document.querySelector('.promo-input-group').style.display = 'flex';
+    }
+
+    function updateSummary() {
+        let subtotal = originalSubtotal;
+        let discount = 0;
+
+        if (appliedPromo) {
+            if (appliedPromo.type === 'percentage') {
+                discount = subtotal * (appliedPromo.discount / 100);
+            } else {
+                discount = appliedPromo.discount;
+            }
+        }
+
+        const total = subtotal - discount;
+
+        document.querySelector('.subtotal-amount').textContent = `৳${subtotal.toFixed(2)}`;
+        document.querySelector('.discount-amount').textContent = `−৳${discount.toFixed(2)}`;
+        document.querySelector('.total-amount').textContent = `৳${total.toFixed(2)}`;
+        
+        const discountRow = document.querySelector('.discount-row');
+        discountRow.style.display = discount > 0 ? 'flex' : 'none';
+    }
+
+    function proceedToCheckout() {
+        if (appliedPromo) {
+            sessionStorage.setItem('appliedPromo', JSON.stringify(appliedPromo));
+        }
+        window.location.href = '/checkout';
+    }
+</script>

@@ -1,0 +1,45 @@
+@{
+    Layout = "/Areas/Admin/Views/Shared/_AdminLayout.cshtml";
+    var activePage = ViewContext.RouteData.Values["action"]?.ToString()?.ToLower();
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h3 mb-0">Store Settings</h2>
+    </div>
+
+    <div class="row">
+        <div class="col-md-3 mb-4">
+            <div class="list-group shadow-sm">
+                <a href="/admin/settings/general" class="list-group-item list-group-item-action @(activePage == "general" ? "active" : "")">
+                    <i class="bi bi-gear me-2"></i> General
+                </a>
+                <a href="/admin/settings/payments" class="list-group-item list-group-item-action @(activePage == "payments" ? "active" : "")">
+                    <i class="bi bi-credit-card me-2"></i> Payments
+                </a>
+                <a href="/admin/settings/shipping" class="list-group-item list-group-item-action @(activePage == "shipping" ? "active" : "")">
+                    <i class="bi bi-truck me-2"></i> Shipping
+                </a>
+                <a href="/admin/settings/taxes" class="list-group-item list-group-item-action @(activePage == "taxes" ? "active" : "")">
+                    <i class="bi bi-percent me-2"></i> Taxes
+                </a>
+                <a href="/admin/settings/users" class="list-group-item list-group-item-action @(activePage == "users" ? "active" : "")">
+                    <i class="bi bi-people me-2"></i> Users & Permissions
+                </a>
+                <a href="/admin/settings/notifications" class="list-group-item list-group-item-action @(activePage == "notifications" ? "active" : "")">
+                    <i class="bi bi-bell me-2"></i> Notifications
+                </a>
+                <a href="/admin/settings/system" class="list-group-item list-group-item-action @(activePage == "system" ? "active" : "")">
+                    <i class="bi bi-cpu me-2"></i> System & Logs
+                </a>
+            </div>
+        </div>
+        <div class="col-md-9">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    @RenderBody()
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,172 @@
+@model Sparkle.Domain.Sellers.Seller
+@{
+    ViewData["Title"] = "Store Settings";
+}
+
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">🏪 Store Settings</h2>
+                <a href="/Seller/Dashboard" class="btn btn-outline-primary">
+                    ← Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            ✓ @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">📝 Shop Information</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" asp-action="UpdateStoreSettings">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Shop Name *</label>
+                            <input type="text" class="form-control" asp-for="ShopName" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Shop Description *</label>
+                            <textarea class="form-control" asp-for="ShopDescription" rows="4" required></textarea>
+                            <small class="text-muted">Tell customers about your store and what makes it unique</small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Mobile Number *</label>
+                                <input type="text" class="form-control" asp-for="MobileNumber" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Bkash Merchant Number</label>
+                                <input type="text" class="form-control" asp-for="BkashMerchantNumber">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Business Address *</label>
+                            <textarea class="form-control" asp-for="BusinessAddress" rows="2" required></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">City *</label>
+                                <input type="text" class="form-control" asp-for="City" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">District *</label>
+                                <input type="text" class="form-control" asp-for="District" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Store Logo URL</label>
+                            <input type="url" class="form-control" asp-for="StoreLogo" placeholder="https://example.com/logo.svg">
+                            <small class="text-muted">Recommended size: 200x200px</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Store Banner URL</label>
+                            <input type="url" class="form-control" asp-for="StoreBanner" placeholder="https://example.com/banner.png">
+                            <small class="text-muted">Recommended size: 1200x300px</small>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                💾 Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">📊 Store Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Current Status:</strong>
+                        <span class="badge @(Model.Status == Sparkle.Domain.Sellers.SellerStatus.Active ? "bg-success" : "bg-secondary") ms-2">
+                            @Model.Status
+                        </span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Rating:</strong> ⭐ @Model.Rating.ToString("0.0")
+                    </div>
+                    <div class="mb-3">
+                        <strong>Total Products:</strong> @Model.TotalProducts
+                    </div>
+                    <div class="mb-3">
+                        <strong>Member Since:</strong> @Model.CreatedAt.ToString("MMM dd, yyyy")
+                    </div>
+                    
+                    <button type="button" class="btn btn-@(Model.Status == Sparkle.Domain.Sellers.SellerStatus.Active ? "warning" : "success") w-100" id="toggleStoreStatus">
+                        @(Model.Status == Sparkle.Domain.Sellers.SellerStatus.Active ? "🔒 Deactivate Store" : "✓ Activate Store")
+                    </button>
+                    <small class="text-muted d-block mt-2">
+                        @(Model.Status == Sparkle.Domain.Sellers.SellerStatus.Active 
+                            ? "Deactivating will hide all your products from customers" 
+                            : "Activating will make your products visible to customers")
+                    </small>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">🖼️ Preview</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <img src="@(Model.StoreLogo ?? "https://via.placeholder.com/150?text=Store+Logo")" 
+                             alt="Store Logo" 
+                             class="img-thumbnail mb-2"
+                             style="width: 150px; height: 150px; object-fit: cover;">
+                        <p class="small text-muted mb-0">Store Logo</p>
+                    </div>
+                    <div>
+                        <img src="@(Model.StoreBanner ?? "https://via.placeholder.com/400x100?text=Store+Banner")" 
+                             alt="Store Banner" 
+                             class="img-thumbnail"
+                             style="width: 100%; max-height: 100px; object-fit: cover;">
+                        <p class="small text-muted mb-0">Store Banner</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('toggleStoreStatus').addEventListener('click', async function() {
+    if (!confirm('Are you sure you want to change your store status?')) return;
+    
+    const btn = this;
+    btn.disabled = true;
+    
+    const response = await fetch('/Seller/Dashboard/ToggleStoreStatus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+        location.reload();
+    } else {
+        alert(data.message || 'Error changing store status');
+        btn.disabled = false;
+    }
+});
+</script>
